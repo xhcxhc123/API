@@ -1,0 +1,4453 @@
+变量约定
+#symbol - 代码标识
+掘金代码(symbol)是掘金平台用于唯一标识交易标的代码,
+格式为：交易所代码.交易标代码, 比如深圳平安的symbol，示例：SZSE.000001（注意区分大小写）。 板块为：BK.板块代码，比如鸿蒙概念的symbol，示例：BK.007347，板块symbol可通过get_symbols(sec_type1=1070)获取。 代码标识表示可以在掘金终端的仿真交易或交易工具中进行查询。
+ 
+#交易所代码
+目前掘金支持国内的 8 个交易所, 各交易所的代码缩写如下：
+市场中文名	市场代码
+上交所	SHSE
+深交所	SZSE
+中金所	CFFEX
+上期所	SHFE
+大商所	DCE
+郑商所	CZCE
+上海国际能源交易中心	INE
+广期所	GFEX
+#交易标的代码
+交易表代码是指交易所给出的交易标的代码, 包括股票（如 600000）, 期货（如 rb2011）, 期权(如 10002498）, 指数（如 000001）, 基金（如 510300）等代码。
+具体的代码请参考交易所的给出的证券代码定义。
+#symbol 示例
+市场中文名	市场代码	示例代码	证券简称
+上交所	SHSE	SHSE.600000	浦发银行
+深交所	SZSE	SZSE.000001	平安银行
+中金所	CFFEX	CFFEX.IC2011	中证 500 指数 2020 年 11 月期货合约
+上期所	SHFE	SHFE.rb2011	螺纹钢 2020 年 11 月期货合约
+大商所	DCE	DCE.m2011	豆粕 2020 年 11 月期货合约
+郑商所	CZCE	CZCE.FG101	玻璃 2021 年 1 月期货合约
+上海国际能源交易中心	INE	INE.sc2011	原油 2020 年 11 月期货合约
+广期所	GFEX	GFEX.lc2405	碳酸锂 2024 年 05 月期货合约
+#虚拟合约
+市场中文名	市场代码	示例代码	证券简称
+上期所	SHFE	SHFE.RB	螺纹钢主力连续合约
+上期所	SHFE	SHFE.RB22	螺纹钢次主力连续合约
+上期所	SHFE	SHFE.RB99	螺纹钢加权指数合约
+上期所	SHFE	SHFE.RB00	螺纹钢当月连续合约
+上期所	SHFE	SHFE.RB01	螺纹钢下月连续合约
+上期所	SHFE	SHFE.RB02	螺纹钢下季连续合约
+上期所	SHFE	SHFE.RB03	螺纹钢隔季连续合约
+#期货主力连续合约
+仅回测模式下使用，期货主力连续合约为量价数据的简单拼接，未做平滑处理， 如 SHFE.RB 螺纹钢主力连续合约，其他主力合约请查看期货主力连续合约
+#mode - 模式选择
+策略支持两种运行模式,需要在run()里面指定，分别为实时模式和回测模式。
+#实时模式
+实时模式需指定 mode = MODE_LIVE
+订阅行情服务器推送的实时行情，也就是交易所的实时行情，只在交易时段提供，常用于仿真和实盘。
+#回测模式
+回测模式需指定 mode = MODE_BACKTEST
+订阅指定时段、指定交易代码、指定数据类型的历史行情，行情服务器将按指定条件全速回放对应的行情数据。适用的场景是策略回测阶段，快速验证策略的绩效是否符合预期。
+#context - 上下文对象
+context 是策略运行上下文环境对象，该对象将会在你的算法策略的任何方法之间做传递。用户可以通过 context 定义多种自己需要的属性，也可以查看 context 固有属性，context 结构如下图：
+ 
+#context.symbols - 订阅代码集合
+通过 subscribe 行情订阅函数， 订阅代码会生成一个代码集合
+函数原型：
+context.symbols
+ 
+        复制成功
+    
+返回值：
+类型	说明
+set(str)	订阅代码集合
+示例：
+subscribe(symbols=['SHSE.600519', 'SHSE.600419'], frequency='60s')
+context.symbols
+ 
+        复制成功
+    
+返回值：
+{'SHSE.600519', 'SHSE.600419'}
+ 
+        复制成功
+    
+#context.now - 当前时间
+实时模式返回当前本地时间, 回测模式返回当前回测时间
+函数原型：
+context.now
+ 
+        复制成功
+    
+返回值：
+类型	说明
+datetime.datetime	当前时间(回测模式下是策略回测的当前历史时间， 实时模式下是用户的系统本地时间)
+示例：
+context.now
+ 
+        复制成功
+    
+返回:
+2020-09-01 09:40:00+08:00
+ 
+        复制成功
+    
+#context.mode - 运行模式
+实时模式为1，回测模式为2
+函数原型：
+context.mode
+ 
+        复制成功
+    
+返回值：
+类型	说明
+int	实时模式为1，回测模式为2
+示例：
+if context.mode == 1:
+    print('执行实时模式:', context.mode)
+elif context.mode == 2:
+    print('执行回测模式:', context.mode)
+else:
+    print('未知模式:', context.mode)
+ 
+        复制成功
+    
+返回:
+执行实时模式:1
+ 
+        复制成功
+    
+#context.data - 数据滑窗
+获取订阅的tick 对象 或者 bar 对象滑窗，数据为包含当前时刻推送 tick 或 bar 的前 count 条tick或者bar数据
+原型:
+context.data(symbol,frequency,count,fields)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+symbol	str	标的代码(只允许单个标的的代码字符串)，使用时参考symbol
+
+frequency	str	频率, 支持 'tick', '1d', '60s' 等, 默认 '1d', 详情见股票行情数据和期货行情数据, 实时行情支持的频率
+
+count	int	滑窗大小(正整数)，需小于等于 subscribe 函数中 count 值
+fields	str	指定返回对象字段, 如有多个字段, 中间用, 隔开, 默认所有, 具体字段见:tick 对象 和 bar 对象 ，需在 subscribe 函数中指定的fields范围内，指定字段越少，查询速度越快
+返回值：
+当subscribe的format="df"（默认）时，返回dataframe
+类型	说明
+dataframe	tick 的 dataframe 或者 bar 的 dataframe
+示例：
+def init(context):
+    subscribe(symbols='SHSE.600519', frequency='60s', count=50, fields='symbol, close, eob', format='df')
+
+def on_bar(context,bars):
+    data = context.data(symbol=bars[0]['symbol'], frequency='60s', count=10)
+    print(data.tail())
+ 
+        复制成功
+    
+输出：
+                symbol    close                       eob
+5  SHSE.600519  1629.96 2024-01-22 14:56:00+08:00
+6  SHSE.600519  1627.25 2024-01-22 14:57:00+08:00
+7  SHSE.600519  1627.98 2024-01-22 14:58:00+08:00
+8  SHSE.600519  1642.00 2024-01-22 15:00:00+08:00
+9  SHSE.600519  1632.96 2024-01-23 09:31:00+08:00
+ 
+        复制成功
+    
+subscribe的format ="row"时，返回list[dict]
+类型	说明
+list[dict]	当frequency='tick'时，返回tick列表：[{tick_1}, {tick_2}, ..., {tick_n}]，列表长度等于滑窗大小，即n=count， 当frequency='60s', '300s', '900s', '1800s', '3600s'时，返回bar列表：[{bar_1}, {bar_2}, {bar_n}, ..., ] ，列表长度等于滑窗大小，即n=count
+示例：
+def init(context):
+    subscribe(symbols='SHSE.600519', frequency='tick', count=50, fields='symbol, price, quotes,created_at', format='row')
+
+
+def on_tick(context, tick):
+    data = context.data(symbol=tick['symbol'], frequency='tick', count=3)
+    print(data)
+ 
+        复制成功
+    
+输出：
+[{'symbol': 'SHSE.600519', 'price': 1642.0, 'quotes': [{'bid_p': 1640.0, 'bid_v': 100, 'ask_p': 1642.0, 'ask_v': 4168}, {'bid_p': 1634.52, 'bid_v': 300, 'ask_p': 1642.01, 'ask_v': 100}, {'bid_p': 1633.0, 'bid_v': 100, 'ask_p': 1642.06, 'ask_v': 100}, {'bid_p': 1632.96, 'bid_v': 100, 'ask_p': 1642.08, 'ask_v': 200}, {'bid_p': 1632.89, 'bid_v': 100, 'ask_p': 1642.2, 'ask_v': 200}], 'created_at': datetime.datetime(2024, 1, 22, 15, 1, 51, 286000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai'))}, {'symbol': 'SHSE.600519', 'price': 1642.0, 'quotes': [{'bid_p': 1640.0, 'bid_v': 100, 'ask_p': 1642.0, 'ask_v': 4168}, {'bid_p': 1634.52, 'bid_v': 300, 'ask_p': 1642.01, 'ask_v': 100}, {'bid_p': 1633.0, 'bid_v': 100, 'ask_p': 1642.06, 'ask_v': 100}, {'bid_p': 1632.96, 'bid_v': 100, 'ask_p': 1642.08, 'ask_v': 200}, {'bid_p': 1632.89, 'bid_v': 100, 'ask_p': 1642.2, 'ask_v': 200}], 'created_at': datetime.datetime(2024, 1, 22, 15, 1, 54, 280000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai'))}, {'symbol': 'SHSE.600519', 'price': 0.0, 'quotes': [{'bid_p': 0.0, 'bid_v': 0, 'ask_p': 0.0, 'ask_v': 0}, {'bid_p': 0.0, 'bid_v': 0, 'ask_p': 0.0, 'ask_v': 0}, {'bid_p': 0.0, 'bid_v': 0, 'ask_p': 0.0, 'ask_v': 0}, {'bid_p': 0.0, 'bid_v': 0, 'ask_p': 0.0, 'ask_v': 0}, {'bid_p': 0.0, 'bid_v': 0, 'ask_p': 0.0, 'ask_v': 0}], 'created_at': datetime.datetime(2024, 1, 23, 9, 14, 1, 91000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai'))}]
+ 
+        复制成功
+    
+subscribe的format ="col"时，返回dict
+类型	说明
+dict	当frequency='tick'时，返回tick数据（symbol为str格式，其余字段为列表，列表长度等于滑窗大小count），当frequency='60s', '300s', '900s', '1800s', '3600s'时，返回bar数据（symbol和frequency为str格式，其余字段为列表，列表长度等于滑窗大小count）
+示例：
+def init(context):
+    subscribe(symbols='SHSE.600519', frequency='tick', count=10, fields='symbol, price, bid_p, created_at', format='col')
+
+
+def on_tick(context, tick):
+    data = context.data(symbol=tick['symbol'], frequency='tick', count=10)
+    print(data)
+ 
+        复制成功
+    
+输出：
+{'symbol': 'SHSE.600519', 'price': [1642.0, 1642.0, 1642.0, 1642.0, 1642.0, 1642.0, 1642.0, 1642.0, 1642.0, 0.0], 'bid_p': [1640.0, 1640.0, 1640.0, 1640.0, 1640.0, 1640.0, 1640.0, 1640.0, 1640.0, 0.0], 'created_at': [datetime.datetime(2024, 1, 22, 15, 1, 12, 280000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), datetime.datetime(2024, 1, 22, 15, 1, 21, 277000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), datetime.datetime(2024, 1, 22, 15, 1, 24, 278000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), datetime.datetime(2024, 1, 22, 15, 1, 33, 280000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), datetime.datetime(2024, 1, 22, 15, 1, 36, 282000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), datetime.datetime(2024, 1, 22, 15, 1, 39, 279000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), datetime.datetime(2024, 1, 22, 15, 1, 48, 283000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), datetime.datetime(2024, 1, 22, 15, 1, 51, 286000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), datetime.datetime(2024, 1, 22, 15, 1, 54, 280000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), datetime.datetime(2024, 1, 23, 9, 14, 1, 91000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai'))]}
+ 
+        复制成功
+    
+注意：
+1. 只有在订阅后，此接口才能取到数据，如未订阅数据，则返回报错。
+2. symbol 参数只支持输入一个标的。
+3. count 参数必须小于或等于订阅函数里面的 count 值。
+4. fields 参数必须在订阅函数subscribe里面指定的 fields 范围内。指定字段越少，查询速度越快，目前效率是row > col > df。
+5. 当subscribe的format指定col时，tick的quotes字段会被拆分，只返回买卖一档的量和价，即只有bid_p，bid_v, ask_p和ask_v。
+#context.account - 账户信息
+可通过此函数获取账户资金信息及持仓信息。
+原型:
+context.account(account_id=None)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+account_id	str	账户信息，默认返回默认账户, 如多个账户需指定 account_id
+返回值：
+返回类型为account - 账户对象。
+示例-获取当前持仓：
+# 所有持仓
+Account_positions = context.account().positions()
+# 指定持仓
+Account_position = context.account().position(symbol='SHSE.600519',side = PositionSide_Long)
+ 
+        复制成功
+    
+返回值：
+类型	说明
+list[position]	持仓对象列表
+注意： 没有持仓的情况下， 用 context.account().positions()查总持仓， 返回空列表， 用 context.account().position()查单个持仓，返回 None
+输出：
+# 所有持仓输出
+[{'account_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'symbol': 'SHSE.600419', 'side': 1, 'volume': 2200, 'volume_today': 100, 'vwap': 16.43391600830338, 'amount': 36154.61521826744, 'fpnl': -2362.6138754940007, 'cost': 36154.61521826744, 'available': 2200, 'available_today': 100, 'created_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2020, 9, 30, 9, 40, tzinfo=tzfile('PRC')), 'account_name': '', 'vwap_diluted': 0.0, 'price': 0.0, 'order_frozen': 0, 'order_frozen_today': 0, 'available_now': 0, 'market_value': 0.0, 'last_price': 0.0, 'last_volume': 0, 'last_inout': 0, 'change_reason': 0, 'change_event_id': '', 'has_dividend': 0}, {'account_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'symbol': 'SHSE.600519', 'side': 1, 'volume': 1100, 'vwap': 1752.575242219682, 'amount': 1927832.7664416502, 'fpnl': -110302.84700805641, 'cost': 1927832.7664416502, 'available': 1100, 'created_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2020, 9, 15, 9, 40, tzinfo=tzfile('PRC')), 'account_name': '', 'volume_today': 0, 'vwap_diluted': 0.0, 'price': 0.0, 'order_frozen': 0, 'order_frozen_today': 0, 'available_today': 0, 'available_now': 0, 'market_value': 0.0, 'last_price': 0.0, 'last_volume': 0, 'last_inout': 0, 'change_reason': 0, 'change_event_id': '', 'has_dividend': 0}]
+# 指定持仓输出
+{'account_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'symbol': 'SHSE.600519', 'side': 1, 'volume': 1100, 'vwap': 1752.575242219682, 'amount': 1927832.7664416502, 'fpnl': -110302.84700805641, 'cost': 1927832.7664416502, 'available': 1100, 'created_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2020, 9, 15, 9, 40, tzinfo=tzfile('PRC')), 'account_name': '', 'volume_today': 0, 'vwap_diluted': 0.0, 'price': 0.0, 'order_frozen': 0, 'order_frozen_today': 0, 'available_today': 0, 'available_now': 0, 'market_value': 0.0, 'last_price': 0.0, 'last_volume': 0, 'last_inout': 0, 'change_reason': 0, 'change_event_id': '', 'has_dividend': 0}
+ 
+        复制成功
+    
+示例-获取当前账户资金：
+context.account().cash
+ 
+        复制成功
+    
+返回值：
+类型	说明
+dict[cash]	资金对象字典
+输出：
+{'account_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'nav': 1905248.2789094353, 'pnl': -94751.72109056474, 'fpnl': -94555.35135529494, 'frozen': 1963697.3526980684, 'available': 36106.277566661825, 'cum_inout': 2000000.0, 'cum_trade': 1963697.3526980684, 'cum_commission': 196.3697352698069, 'last_trade': 1536.1536610412597, 'last_commission': 0.153615366104126, 'created_at': datetime.datetime(2020, 9, 1, 8, 0, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2020, 9, 30, 9, 40, tzinfo=tzfile('PRC')), 'account_name': '', 'currency': 0, 'order_frozen': 0.0, 'balance': 0.0, 'market_value': 0.0, 'cum_pnl': 0.0, 'last_pnl': 0.0, 'last_inout': 0.0, 'change_reason': 0, 'change_event_id': ''}
+ 
+        复制成功
+    
+示例-获取账户连接状态：
+context.account().status
+ 
+        复制成功
+    
+输出：
+{'state': 3, 'error': {'code': 0, 'type': '', 'info': ''}}
+ 
+        复制成功
+    
+#context.parameters - 动态参数
+获取所有动态参数
+函数原型：
+context.parameters
+ 
+        复制成功
+    
+返回值：
+类型	说明
+dict	key 为动态参数的 key, 值为动态参数对象， 参见动态参数
+
+示例-添加动态参数和查询所有设置的动态参数
+add_parameter(key='k_value', value=context.k_value, min=0, max=100, name='k值阀值', intro='k值阀值',group='1', readonly=False)
+
+context.parameters
+ 
+        复制成功
+    
+输出：
+{'k_value': {'key': 'k_value', 'value': 80.0, 'max': 100.0, 'name': 'k值阀值', 'intro': 'k值阀值', 'group': '1', 'min': 0.0, 'readonly': False}}
+
+ 
+        复制成功
+    
+#context.xxxxx - 自定义属性
+通过自定义属性设置参数， 随 context 全局变量传入策略各个事件里
+context.my_value = 100000000
+ 
+        复制成功
+    
+返回值：
+类型	说明
+any type	自定义属性
+示例-输出自定义属性
+print(context.my_value)
+ 
+        复制成功
+    
+输出：
+100000000
+
+ 
+        复制成功
+    
+
+init - 初始化策略
+初始化策略, 策略启动时自动执行。可以在这里初始化策略配置参数。
+函数原型：
+init(context)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+context	context
+上下文，全局变量可存储在这里
+示例：
+def init(context):
+    # 订阅bar
+    subscribe(symbols='SHSE.600000,SHSE.600004', frequency='30s', count=5)
+	# 增加对象属性，如:设置一个股票资金占用百分比
+	context.percentage_stock = 0.8
+ 
+        复制成功
+    
+注意：
+1. 回测模式下init函数里不支持交易操作，仿真模式和实盘模式支持。
+2. init只会在策略启动时运行一次，如果不是每天重启策略，每天需要查询更新数据，可以通过设置定时任务执行。
+#schedule - 定时任务配置
+在指定时间自动执行策略算法, 通常用于选股类型策略
+函数原型：
+schedule(schedule_func, date_rule, time_rule)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+schedule_func	function	策略定时执行算法
+date_rule	str	n + 时间单位， 可选'd/w/m' 表示 n 天/n 周/n 月
+time_rule	str	执行算法的具体时间 (%H:%M:%S 格式)
+返回值：
+None
+示例：
+def init(context):
+    #每天的19:06:20执行策略algo_1
+    schedule(schedule_func=algo_1, date_rule='1d', time_rule='19:06:20')
+	#每月的第一个交易日的09:40:00执行策略algo_2
+	schedule(schedule_func=algo_2, date_rule='1m', time_rule='9:40:00')
+
+def algo_1(context):
+    print(context.symbols)
+
+def algo_2(context):
+    order_volume(symbol='SHSE.600000', volume=200, side=OrderSide_Buy, order_type=OrderType_Market, position_effect=PositionEffect_Open)
+
+
+ 
+        复制成功
+    
+注意：
+1. time_rule 的时,分,秒均不可以只输入个位数，例:'9:40:0'或'14:5:0'
+2. 目前暂时支持1d、1w、1m，其中1w、1m仅用于回测
+#run - 运行策略
+函数原型：
+run(strategy_id='', filename='', mode=MODE_UNKNOWN, token='', backtest_start_time='',
+    backtest_end_time='', backtest_initial_cash=1000000,
+    backtest_transaction_ratio=1, backtest_commission_ratio=0,
+    backtest_slippage_ratio=0, backtest_adjust=ADJUST_NONE, backtest_check_cache=1,
+    serv_addr='', backtest_match_mode=0)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+strategy_id	str	策略 id
+filename	str	策略文件名称
+mode	int	策略模式 MODE_LIVE(实时)=1 MODE_BACKTEST(回测) =2
+token	str	用户标识
+backtest_start_time	str	回测开始时间 (%Y-%m-%d %H:%M:%S 格式)
+backtest_end_time	str	回测结束时间 (%Y-%m-%d %H:%M:%S 格式)
+backtest_initial_cash	double	回测初始资金, 默认 1000000
+backtest_transaction_ratio	double	回测成交比例, 默认 1.0, 即下单 100%成交
+backtest_commission_ratio	double	回测佣金比例, 默认 0
+backtest_slippage_ratio	double	回测滑点比例, 默认 0
+backtest_adjust	int	回测复权方式(默认不复权) ADJUST_NONE(不复权)=0 ADJUST_PREV(前复权)=1 ADJUST_POST(后复权)=2
+backtest_check_cache	int	回测是否使用缓存：1 - 使用， 0 - 不使用；默认使用
+serv_addr	str	终端服务地址, 默认本地地址, 可不填，若需指定应输入 ip+端口号，如"127.0.0.1:7001"
+backtest_match_mode	int	回测市价撮合模式： 1-实时撮合：在当前 bar 的收盘价/当前 tick 的 price 撮合，0-延时撮合：在下个 bar 的开盘价/下个 tick 的 price 撮合，默认是模式 0
+返回值：
+None
+示例：
+run(strategy_id='strategy_1', filename='main.py', mode=MODE_BACKTEST, token='token_id',
+    backtest_start_time='2016-06-17 13:00:00', backtest_end_time='2017-08-21 15:00:00')
+ 
+        复制成功
+    
+注意：
+1. run 函数中，mode=1也可改为mode=MODE_LIVE，两者等价，backtest_adjust同理
+2. 在前复权和后复权回测模式下，是不会处理分红、送股、拆分事件的，因为除权除息产生的变动已经通过复权因子调整反映在前复权/后复权股价中，无需重复处理。不复权会自动处理分红送转。
+3. filename 指运行的 py 文件名字，如该策略文件名为 Strategy.py,则此处应填"Strategy.py"
+#stop - 停止策略
+停止策略，退出策略进程
+函数原型：
+stop()
+ 
+        复制成功
+    
+返回值：
+None
+示例：
+#若订阅过的代码集合为空，停止策略
+if not context.symbols:
+   stop()
+ 
+        复制成功
+    
+#timer - 设置定时器
+设定定时器的间隔秒数，每过设定好的秒数调用一次计时器 timer_func()，直到 timer_stop()结束定时器为止。 （仿真、实盘场景适用，回测模式下不生效）
+函数原型：
+timer(timer_func, period, start_delay)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+timer_func	function	在 timer 设置的时间到达时触发的事件函数
+period	int	定时事件间隔毫秒数，设定每隔多少毫秒触发一次定时器，范围在 [1,43200000]
+start_delay	int	等待秒数(毫秒)，设定多少毫秒后启动定时器，范围在[0,43200000]
+返回值： dict
+字段	类型	说明
+timer_status	int	定时器设置是否成功，成功=0，失败=非 0 错误码（timer_id 无效）。
+timer_id	int	设定好的定时器 id
+#timer_stop - 停止定时器
+停止已设置的定时器
+函数原型：
+timer_stop(timer_id)
+ 
+        复制成功
+    
+参数：
+字段	类型	说明
+timer_id	int	要停止的定时器 id
+返回值：
+字段	类型	说明
+is_stop	bool	是否成功停止，True or False
+示例：
+def init(context):
+    # 每隔1分钟执行ontime_1, 即时启动
+    context.timerid_1 = timer(timer_func=ontimer_1, period=60000, start_delay=0)
+    context.counter_1 = 0
+
+    # 每隔半小时执行ontime_2, 5分钟之后启动
+    context.timerid_2 = timer(timer_func=ontimer_2, period=300000, start_delay=0)
+    print('启动定时器2：', context.now)
+    context.counter_2 = 0
+
+
+def ontimer_1(context):
+    # 定时器执行次数计数
+    context.counter_1 += 1
+    # 定时器执行逻辑
+    print('定时器1：', context.now)
+
+
+def ontimer_2(context):
+    # 定时器执行次数计数
+    context.counter_2 += 1
+    # 定时器执行逻辑（如查询账户资金）
+    cash = context.account().cash
+
+    print('定时器2：', context.now)
+
+    # 按执行次数条件停止定时器
+    if context.counter_1 >= 5:
+        ret1 = timer_stop(context.timerid_1['timer_id'])
+        if ret1:
+            print("结束1分钟定时器")
+
+    if context.counter_2 >= 10:
+        ret2 = timer_stop(context.timerid_2['timer_id'])
+ 
+        复制成功
+    
+注意：
+1. 仿真、实盘场景适用，回测模式下不生效
+2. period 从前一次事件函数开始执行时点起算，若下一次事件函数需要执行时，前一次事件函数没运行完毕，等待上一个事件执行完毕再执行下一个事件。
+subscribe - 行情订阅
+订阅行情, 可以指定 symbol, 数据滑窗大小, 以及是否需要等待全部代码的数据到齐再触发事件。
+函数原型：
+subscribe(symbols, frequency='1d', count=1, unsubscribe_previous=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+symbols	str or list	订阅标的代码, 注意大小写，支持字串格式，如有多个代码, 中间用 , (英文逗号) 隔开, 也支持 ['symbol1', 'symbol2'] 这种列表格式
+frequency	str	频率, 支持 'tick', '60s', '300s', '900s' 等, 默认'1d', 详情见股票行情数据和期货行情数据, 实时行情支持的频率
+
+count	int	context.data返回的订阅数据滑窗大小, 默认1 ,详情见数据滑窗
+
+wait_group	bool	是否等待同一频率的bar同时到齐（只支持bar频率），默认False不取消, 输入True则同时等待同频率所有bar到齐再一次性返回
+wait_group_timeout	str	等待超时时间，只有wait_group=True时生效，默认'10s'
+unsubscribe_previous	bool	是否取消过去订阅的 symbols, 默认False不取消, 输入True则取消所有原来的订阅。
+fields	str	context.data返回的对象字段, 如有多个字段, 中间用, 隔开, 默认所有, 具体字段见:tick 对象 和 bar 对象 ，在 subscribe 函数中指定的字段越少，context.data查询速度越快
+format	str	context.data返回的数据格式，默认"df", "df": 数据框格式，返回dataframe（默认）,"row": 原始行式组织格式，返回list[dict]（当用户对性能有要求时, 推荐使用此格式）, "col": 列式组织格式，返回dict 。
+返回值：
+None
+示例：
+def init(context):
+    # 同时订阅600519的tick数据和分钟数据
+    subscribe(symbols='SHSE.600519', frequency='tick', count=2)
+    subscribe(symbols='SHSE.600519', frequency='60s', count=2)
+
+
+def on_tick(context,tick):
+    print('收到tick行情---', tick)
+
+
+def on_bar(context,bars):
+    print('收到bar行情---', bars)
+    data = context.data(symbol='SHSE.600519', frequency='60s', count=2)
+    print('bar数据滑窗---', data)
+ 
+        复制成功
+    
+注意：
+1. subscribe 支持多次调用，支持同一标的不同频率订阅。订阅后的数据储存在本地，需要通过 context.data 接口调用或是直接在 on_tick 或 on_bar 中获取。
+2. 在实时模式下，最新返回的数据是不复权的。
+3. 订阅函数subscribe里面指定字段越少，查询速度越快，目前效率是row > col > df。
+4. 当subscribe的format指定col时，tick的quotes字段会被拆分，只返回买卖一档的量和价，即只有bid_p，bid_v, ask_p和ask_v。
+5. 在回测模式下，subscribe使用wait_group=True时，等待的标的需要下个时间到期。例如订阅60s的频率A和B标的，当天第一条bar数据是在09:32:00推送eob为09:31:00的A和B的bar，因为需要走到09:32:00才能确认09:31:00的全部bar是否到齐。在实时模式下，会根据实时到齐时间推送。
+#unsubscribe - 取消订阅
+取消行情订阅, 默认取消所有已订阅行情
+函数原型：
+unsubscribe(symbols='*', frequency='60s')
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+symbols	str or list	订阅标的代码, 支持字串格式，如有多个代码, 中间用 , (英文逗号) 隔开, 也支持 ['symbol1', 'symbol2'] 这种列表格式
+frequency	str	频率, 支持 'tick', '60s', '300s', '900s' 等, 默认'1d', 详情见股票行情数据和期货行情数据, 实时行情支持的频率
+
+返回值：
+None
+示例：
+unsubscribe(symbols='SHSE.600000,SHSE.600004', frequency='60s')
+ 
+        复制成功
+    
+注意： 如示例所示代码，取消SHSE.600000,SHSE.600004两只代码60s行情的订阅，若SHSE.600000同时还订阅了"300s"频度的行情，该代码不会取消该标的此频度的订阅
+________________________________________
+on_tick - tick 数据推送事件
+接收 tick 分笔数据， 通过 subscribe 订阅 tick 行情，行情服务主动推送 tick 数据
+函数原型：
+on_tick(context, tick)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+context	context 对象
+上下文
+tick	tick 对象
+当前被推送的 tick
+示例：
+def init(context):
+    # 订阅600519的tick数据
+    subscribe(symbols='SHSE.600519', frequency='tick', count=2)
+
+
+def on_tick(context,tick):
+    print('收到tick行情---', tick)
+ 
+        复制成功
+    
+输出：
+{'symbol': 'SHSE.600519', 'created_at': datetime.datetime(2020, 9, 2, 14, 7, 23, 620000, tzinfo=tzfile('PRC')), 'price': 1798.8800048828125, 'open': 1825.0, 'high': 1828.0, 'low': 1770.0, 'cum_volume': 2651191, 'cum_amount': 4760586491.0, 'cum_position': 0, 'last_amount': 179888.0, 'last_volume': 100, 'trade_type': 0, 'receive_local_time': 1602751345.262745}
+ 
+        复制成功
+    
+#on_bar - bar 数据推送事件
+接收固定周期 bar 数据， 通过 subscribe 订阅 bar 行情，行情服务主动推送 bar 数据
+函数原型：
+on_bar(context, bars)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+context	context 对象
+上下文对象
+bars	list(bar)
+当前被推送的 bar 列表
+示例：
+# coding=utf-8
+from __future__ import print_function, absolute_import
+from gm.api import *
+from datetime import datetime, timedelta
+
+
+def init(context):
+    # 订阅600519和000001的分钟数据
+    subscribe(symbols='SHSE.600519,SZSE.000001', frequency='60s', count=2)
+
+
+def on_bar(context,bars):
+    print('收到bars行情---', bars)
+
+
+if __name__ == '__main__':
+    '''
+        strategy_id策略ID, 由系统生成
+        filename文件名, 请与本文件名保持一致
+        mode运行模式, 实时模式:MODE_LIVE回测模式:MODE_BACKTEST
+        token绑定计算机的ID, 可在系统设置-密钥管理中生成
+        backtest_start_time回测开始时间
+        backtest_end_time回测结束时间
+        backtest_adjust股票复权方式, 不复权:ADJUST_NONE前复权:ADJUST_PREV后复权:ADJUST_POST
+        backtest_initial_cash回测初始资金
+        backtest_commission_ratio回测佣金比例
+        backtest_slippage_ratio回测滑点比例
+        backtest_match_mode市价撮合模式，以下一tick/bar开盘价撮合:0，以当前tick/bar收盘价撮合：1
+    '''
+    backtest_start_time = str(datetime.now() - timedelta(weeks=1))[:19]
+    backtest_end_time = str(datetime.now())[:19]
+    run(strategy_id='xxxxxx',
+        filename='main.py',
+        mode=MODE_BACKTEST,
+        token='xxxxxxx',
+        backtest_start_time=backtest_start_time,
+        backtest_end_time=backtest_end_time,
+        backtest_adjust=ADJUST_PREV,
+        backtest_initial_cash=10000000,
+        backtest_commission_ratio=0.0001,
+        backtest_slippage_ratio=0.0001,
+        backtest_match_mode=1)
+ 
+        复制成功
+    
+输出：
+收到bars行情--- [{'symbol': 'SHSE.600519', 'frequency': '60s', 'open': 1786.0, 'high': 1786.0, 'low': 1786.0, 'close': 1786.0, 'volume': 20200, 'amount': 36077200.0, 'pre_close': 0.0, 'position': 0, 'bob': datetime.datetime(2023, 11, 23, 14, 59, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), 'eob': datetime.datetime(2023, 11, 23, 15, 0, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai'))}]
+ 
+        复制成功
+    
+注意：
+1. 若在 subscribe 函数中订阅了多个标的的 bar，但 wait_group 参数值为 False,则多次触发 On_bar,每次返回只包含单个标的 list 长度为 1 的 bars;若参数值为 True,则只会触发一次 On_bar,返回包含多个标的的 bars。
+2. bar 在本周期结束时间后才会推送，标的在这个周期内无交易则不推送 bar。
+#on_l2transaction - 逐笔成交事件
+接收逐笔成交数据(L2 行情时有效) 仅特定券商付费提供 函数原型：
+on_l2transaction(context, transaction)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+context	context 对象
+上下文对象
+transaction	L2Transaction 对象
+收到的逐笔成交行情
+示例：
+def on_l2transaction(context, transaction):
+    print(transaction)
+ 
+        复制成功
+    
+输出：
+{'symbol': 'SZSE.300003', 'volume': 300, 'created_at': datetime.datetime(2020, 11, 24, 9, 38, 16, 50, tzinfo=tzfile('PRC')), 'exec_type': '4', 'side': '', 'price': 0.0}
+
+ 
+        复制成功
+    
+#on_l2order - 逐笔委托事件
+接收逐笔委托数据（深交所 L2 行情时有效） 仅特定券商付费提供 函数原型：
+on_l2order(context, l2order)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+context	context 对象
+上下文对象
+l2order	L2Order 对象
+收到的逐笔委托行情
+示例：
+def on_l2order(context, l2order):
+    print(l2order)
+ 
+        复制成功
+    
+输出：
+{'symbol': 'SZSE.300003', 'side': '1', 'price': 29.350000381469727, 'volume': 2400, 'created_at': datetime.datetime(2020, 11, 24, 9, 38, 16, 80, tzinfo=tzfile('PRC')), 'order_type': '2'}
+
+ 
+current - 查询当前行情快照
+查询当前行情快照，返回 tick 数据。实时模式，返回当前最新 tick 数据，回测模式，返回回测当前时间点的收盘价
+函数原型：
+current(symbols, fields='', include_call_auction=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+symbols	str or list	查询代码，如有多个代码, 中间用 , (英文逗号) 隔开, 也支持 ['symbol1', 'symbol2'] 这种列表格式 ，使用参考symbol
+
+fields	str	查询字段, 默认所有字段 具体字段见:tick 对象
+
+include_call_auction	bool	是否支持集合竞价(9:15-9:25)取数，True为支持，False为不支持，默认为False
+返回值： list[dict]
+示例：
+current_data = current(symbols='SZSE.000001')
+ 
+        复制成功
+    
+输出：
+[{'symbol': 'SZSE.000001', 'open': 16.200000762939453, 'high': 16.920000076293945, 'low': 16.149999618530273, 'price': 16.559999465942383, 'quotes': [{'bid_p': 16.549999237060547, 'bid_v': 209200, 'ask_p': 16.559999465942383, 'ask_v': 296455}, {'bid_p': 16.540000915527344, 'bid_v': 188900, 'ask_p': 16.56999969482422, 'ask_v': 374405}, {'bid_p': 16.530000686645508, 'bid_v': 44900, 'ask_p': 16.579999923706055, 'ask_v': 187220}, {'bid_p': 16.520000457763672, 'bid_v': 20800, 'ask_p': 16.59000015258789, 'ask_v': 102622}, {'bid_p': 16.510000228881836, 'bid_v': 37700, 'ask_p': 16.600000381469727, 'ask_v': 337002}], 'cum_volume': 160006232, 'cum_amount': 2654379585.66, 'last_amount': 14153832.0, 'last_volume': 854700, 'trade_type': 7, 'created_at': datetime.datetime(2020, 10, 15, 15, 0, 3, tzinfo=tzfile('PRC'))}]
+ 
+        复制成功
+    
+注意：
+1. 若输入包含无效标的代码，则返回的列表只包含有效标的代码对应的dict
+2. 若输入代码正确，但查询字段中包括错误字段，返回的列表仍包含对应数量的dict，但每个dict中除有效字段外，其他字段的值均为空字符串/0
+3. 回测只有 symbol、price 和 created_at 字段有效，其余字段为0，实时模式全部字段有效。
+4. 集合竞价阶段还没有成交时，tick 行情快照的有效字段只有盘口报价quotes。
+5. 回测模式下，如果订阅行情再调用current，会返回订阅频度（tick，分钟bar，日线）回测当前时刻的最新价格，超出历史行情权限会报错中止回测；如果不订阅行情直接调用current，会返回回测当前时刻最近的日线收盘价。
+#current_price - 查询当前最新价
+查询指定标的当前时点最新价。实时模式，返回当前最新 tick.price ；回测模式，返回回测当前时间点的收盘价。
+函数原型：
+current_price(symbols)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+symbols	str or list	查询代码，如有多个代码, 中间用 , (英文逗号) 隔开, 也支持 ['symbol1', 'symbol2'] 这种列表格式 ，使用参考symbol
+
+返回值： list[dict]
+字段名	类型	中文名称	说明
+symbol	str	标的代码	格式exchange.sec_id（SHSE.600000, SZSE.000001）
+price	float	最新价	实时模式：当前时点最新tick.price。回测模式：若在subscribe的订阅频度frequency='tick', 返回回测当前时点最新tick.price;若在subscribe的订阅频度frequency='60s', 返回回测当前时点最近1分钟bar.close;若在subscribe的订阅频度frequency='1d', 返回回测当前时点最近日线bar.close.
+created_at	datetime.datetime	创建时间	实时模式：当前时点最新tick.created_at。回测模式：若在subscribe的订阅频度frequency='tick', 返回回测当前时点最新tick.created_at;若在subscribe的订阅频度frequency='60s', 返回回测当前时点最近1分钟bar.eob; 若在subscribe的订阅频度frequency='1d', 返回回测当前时点最近日线bar.eob.
+示例：
+current_data = current_price(symbols='SZSE.000001')
+ 
+        复制成功
+    
+输出：
+[{'symbol': 'SZSE.000001', 'price': 16.559999465942383, 'created_at': datetime.datetime(2020, 10, 15, 15, 0, 3, tzinfo=tzfile('PRC'))}]
+ 
+        复制成功
+    
+注意：
+1. 若输入包含无效标的代码，则返回的列表只包含有效标的代码对应的dict
+2. 回测模式下，如果订阅行情再调用current_price，会返回订阅频度（tick，分钟bar，日线）回测当前时刻的最新价格，超出历史行情权限会报错中止回测；如果不订阅行情直接调用current_price，会返回回测当前时刻最近的日线收盘价。
+#history - 查询历史行情
+函数原型：
+history(symbol, frequency, start_time, end_time, fields=None, skip_suspended=True,
+        fill_missing=None, adjust=ADJUST_NONE, adjust_end_time='', df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+symbol	str or list	标的代码, 如有多个代码, 中间用 , (英文逗号) 隔开, 也支持 ['symbol1', 'symbol2'] 这种列表格式 ，使用参考symbol
+
+frequency	str	频率, 支持 'tick', '1d', '60s' 等, 默认 '1d', 详情见股票行情数据和期货行情数据, 实时行情支持的频率
+
+start_time	str or datetime.datetime	开始时间 (%Y-%m-%d %H:%M:%S 格式), 也支持 datetime.datetime 格式
+end_time	str or datetime.datetime	结束时间 (%Y-%m-%d %H:%M:%S 格式), 也支持 datetime.datetime 格式
+fields	str	指定返回对象字段, 如有多个字段, 中间用, 隔开, 默认所有, 具体字段见:tick 对象 和 bar 对象
+
+adjust	int	ADJUST_NONE or 0: 不复权, ADJUST_PREV or 1: 前复权, ADJUST_POST or 2: 后复权 默认不复权
+adjust_end_time	str	复权基点时间, 默认当前时间
+df	bool	是否返回 dataframe 格式, 默认 False, 返回 list[dict]
+返回值:参考tick 对象 和 bar 对象。
+当 df = True 时， 返回
+类型	说明
+dataframe	tick 的 dataframe 或者 bar 的 dataframe
+示例：
+history_data = history(symbol='SHSE.000300', frequency='1d', start_time='2010-07-28',  end_time='2017-07-30', fields='open, close, low, high, eob', adjust=ADJUST_PREV, df= True)
+ 
+        复制成功
+    
+输出：
+          open      close        low       high                       eob
+0     2796.4829  2863.7241  2784.1550  2866.4041 2010-07-28 00:00:00+08:00
+1     2866.7720  2877.9761  2851.9961  2888.5991 2010-07-29 00:00:00+08:00
+2     2871.4810  2868.8459  2844.6819  2876.1360 2010-07-30 00:00:00+08:00
+3     2868.2791  2917.2749  2867.4500  2922.6121 2010-08-02 00:00:00+08:00
+4     2925.2539  2865.9709  2865.7610  2929.6140 2010-08-03 00:00:00+08:00
+
+ 
+        复制成功
+    
+当 df = False 时， 返回
+类型	说明
+list	tick 列表 或者 bar 列表
+注意：
+history_data = history(symbol='SHSE.000300', frequency='1d', start_time='2017-07-30',  end_time='2017-07-31', fields='open, close, low, high, eob', adjust=ADJUST_PREV, df=False)
+ 
+        复制成功
+    
+输出：
+[{'open': 3722.42822265625, 'close': 3737.873291015625, 'low': 3713.655029296875, 'high': 3746.520751953125, 'eob': datetime.datetime(2017, 7, 31, 0, 0, tzinfo=tzfile('PRC'))}]
+
+ 
+        复制成功
+    
+1. 返回的list/DataFrame是以参数eob/bob的升序来排序的，若要获取多标的的数据，通常需进一步的数据处理来分别提取出每只标的的历史数据。
+2. 获取数据目前采用前开后闭区间的方式，根据eob升序排序。
+3. 若输入无效标的代码，返回空列表/空DataFrame。
+4. 若输入代码正确，但查询字段包含无效字段，返回的列表、DataFrame 只包含 eob、symbol和输入的其他有效字段。
+5. skip_suspended 和 fill_missing 参数暂不支持。
+6. 日内数据单次返回数据量最大返回 33000, 超出部分不返回。
+7. start_time 和 end_time 输入不存在日期时，会报错 details = "failed to parse datetime"。
+#history_n - 查询历史行情最新 n 条
+函数原型：
+history_n(symbol, frequency, count, end_time=None, fields=None, skip_suspended=True,
+          fill_missing=None, adjust=ADJUST_NONE, adjust_end_time='', df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+symbol	str	标的代码(只允许单个标的的代码字符串)，使用时参考symbol
+
+frequency	str	频率, 支持 'tick', '1d', '60s' 等, 默认 '1d', 详情见股票行情数据和期货行情数据, 实时行情支持的频率
+
+count	int	数量(正整数)
+end_time	str or datetime.datetime	结束时间 (%Y-%m-%d %H:%M:%S 格式), 也支持 datetime.datetime 格式，默认 None 时，用了实际当前时间，非回测当前时间
+fields	str	指定返回对象字段, 如有多个字段, 中间用, 隔开, 默认所有, 具体字段见:tick 对象 和 bar 对象
+
+adjust	int	ADJUST_NONE or 0: 不复权, ADJUST_PREV or 1: 前复权, ADJUST_POST or 2: 后复权 默认不复权
+adjust_end_time	str	复权基点时间, 默认当前时间
+df	bool	是否返回 dataframe 格式, 默认 False, 返回 list[dict]
+返回值:参考tick 对象 和 bar 对象。
+当 df = True 时，返回
+类型	说明
+dataframe	tick 的 dataframe 或者 bar 的 dataframe
+示例：
+history_n_data = history_n(symbol='SHSE.600519', frequency='1d', count=100, end_time='2020-10-20 15:30:00', fields='symbol, open, close, low, high, eob', adjust=ADJUST_PREV, df=True)
+ 
+        复制成功
+    
+输出：
+ symbol       open  ...       high                       eob
+0   SHSE.600519  1350.2278  ...  1350.3265 2020-05-22 00:00:00+08:00
+1   SHSE.600519  1314.6434  ...  1350.8010 2020-05-25 00:00:00+08:00
+2   SHSE.600519  1354.0629  ...  1354.1321 2020-05-26 00:00:00+08:00
+3   SHSE.600519  1343.3086  ...  1344.2970 2020-05-27 00:00:00+08:00
+4   SHSE.600519  1322.5214  ...  1331.3878 2020-05-28 00:00:00+08:00
+ 
+        复制成功
+    
+当 df = False 时， 返回
+类型	说明
+list	tick 列表 或者 bar 列表
+示例：
+history_n_data = history_n(symbol='SHSE.600519', frequency='1d', count=2, end_time='2020-10-20 15:30:00', fields='symbol, open, close, low, high, eob', adjust=ADJUST_PREV, df=False)
+ 
+        复制成功
+    
+输出：
+[{'symbol': 'SHSE.600519', 'open': 1725.0, 'close': 1699.0, 'low': 1691.9000244140625, 'high': 1733.97998046875, 'eob': datetime.datetime(2020, 10, 19, 0, 0, tzinfo=tzfile('PRC'))}, {'symbol': 'SHSE.600519', 'open': 1699.989990234375, 'close': 1734.0, 'low': 1695.0, 'high': 1734.969970703125, 'eob': datetime.datetime(2020, 10, 20, 0, 0, tzinfo=tzfile('PRC'))}]
+
+ 
+        复制成功
+    
+注意：
+1. 返回的list/DataFrame是以参数eob/bob的升序来排序的
+2. 若输入无效标的代码，返回空列表/空DataFrame
+3. 若输入代码正确，但查询字段包含无效字段，返回的列表、DataFrame 只包含 eob、symbol和输入的其他有效字段
+4. end_time 中月,日,时,分,秒均可以只输入个位数,例:'2017-7-30 20:0:20',但若对应位置为零，则0不可被省略,如不可输入'2017-7-30 20: :20'
+5. skip_suspended 和 fill_missing 参数暂不支持
+6. 单次返回数据量最大返回 33000, 超出部分不返回
+7. end_time 输入不存在日期时，会报错 details = "Can't parse string as time: 2020-10-40 15:30:00"
+#context.data - 查询订阅数据
+函数原型：
+context.data(symbol, frequency, count, fields)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+symbol	str	标的代码(只允许单个标的的代码字符串)，使用时参考symbol
+
+frequency	str	频率, 支持 'tick', '1d', '60s' 等, 默认 '1d', 详情见股票行情数据和期货行情数据, 实时行情支持的频率
+
+count	int	滑窗大小(正整数)，需小于等于 subscribe 函数中 count 值
+fields	str	指定返回对象字段, 如有多个字段, 中间用, 隔开, 默认所有, 具体字段见:tick 对象 和 bar 对象 ，需在 subscribe 函数中指定的fields范围内，指定字段越少，查询速度越快
+返回值：
+当subscribe的format="df"（默认）时，返回dataframe
+类型	说明
+dataframe	tick 的 dataframe 或者 bar 的 dataframe
+示例：
+def init(context):
+    subscribe(symbols='SHSE.600519', frequency='60s', count=50, fields='symbol, close, eob', format='df')
+
+def on_bar(context,bars):
+    data = context.data(symbol=bars[0]['symbol'], frequency='60s', count=10)
+    print(data.tail())
+ 
+        复制成功
+    
+输出：
+                symbol    close                       eob
+5  SHSE.600519  1629.96 2024-01-22 14:56:00+08:00
+6  SHSE.600519  1627.25 2024-01-22 14:57:00+08:00
+7  SHSE.600519  1627.98 2024-01-22 14:58:00+08:00
+8  SHSE.600519  1642.00 2024-01-22 15:00:00+08:00
+9  SHSE.600519  1632.96 2024-01-23 09:31:00+08:00
+ 
+        复制成功
+    
+subscribe的format ="row"时，返回list[dict]
+类型	说明
+list[dict]	当frequency='tick'时，返回tick列表：[{tick_1}, {tick_2}, ..., {tick_n}]，列表长度等于滑窗大小，即n=count， 当frequency='60s', '300s', '900s', '1800s', '3600s'时，返回bar列表：[{bar_1}, {bar_2}, {bar_n}, ..., ] ，列表长度等于滑窗大小，即n=count
+示例：
+def init(context):
+    subscribe(symbols='SHSE.600519', frequency='tick', count=50, fields='symbol, price, quotes,created_at', format='row')
+
+
+def on_tick(context, tick):
+    data = context.data(symbol=tick['symbol'], frequency='tick', count=3)
+    print(data)
+ 
+        复制成功
+    
+输出：
+[{'symbol': 'SHSE.600519', 'price': 1642.0, 'quotes': [{'bid_p': 1640.0, 'bid_v': 100, 'ask_p': 1642.0, 'ask_v': 4168}, {'bid_p': 1634.52, 'bid_v': 300, 'ask_p': 1642.01, 'ask_v': 100}, {'bid_p': 1633.0, 'bid_v': 100, 'ask_p': 1642.06, 'ask_v': 100}, {'bid_p': 1632.96, 'bid_v': 100, 'ask_p': 1642.08, 'ask_v': 200}, {'bid_p': 1632.89, 'bid_v': 100, 'ask_p': 1642.2, 'ask_v': 200}], 'created_at': datetime.datetime(2024, 1, 22, 15, 1, 51, 286000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai'))}, {'symbol': 'SHSE.600519', 'price': 1642.0, 'quotes': [{'bid_p': 1640.0, 'bid_v': 100, 'ask_p': 1642.0, 'ask_v': 4168}, {'bid_p': 1634.52, 'bid_v': 300, 'ask_p': 1642.01, 'ask_v': 100}, {'bid_p': 1633.0, 'bid_v': 100, 'ask_p': 1642.06, 'ask_v': 100}, {'bid_p': 1632.96, 'bid_v': 100, 'ask_p': 1642.08, 'ask_v': 200}, {'bid_p': 1632.89, 'bid_v': 100, 'ask_p': 1642.2, 'ask_v': 200}], 'created_at': datetime.datetime(2024, 1, 22, 15, 1, 54, 280000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai'))}, {'symbol': 'SHSE.600519', 'price': 0.0, 'quotes': [{'bid_p': 0.0, 'bid_v': 0, 'ask_p': 0.0, 'ask_v': 0}, {'bid_p': 0.0, 'bid_v': 0, 'ask_p': 0.0, 'ask_v': 0}, {'bid_p': 0.0, 'bid_v': 0, 'ask_p': 0.0, 'ask_v': 0}, {'bid_p': 0.0, 'bid_v': 0, 'ask_p': 0.0, 'ask_v': 0}, {'bid_p': 0.0, 'bid_v': 0, 'ask_p': 0.0, 'ask_v': 0}], 'created_at': datetime.datetime(2024, 1, 23, 9, 14, 1, 91000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai'))}]
+ 
+        复制成功
+    
+subscribe的format ="col"时，返回dict
+类型	说明
+dict	当frequency='tick'时，返回tick数据（symbol为str格式，其余字段为列表，列表长度等于滑窗大小count），当frequency='60s', '300s', '900s', '1800s', '3600s'时，返回bar数据（symbol和frequency为str格式，其余字段为列表，列表长度等于滑窗大小count）
+示例：
+def init(context):
+    subscribe(symbols='SHSE.600519', frequency='tick', count=10, fields='symbol, price, bid_p, created_at', format='col')
+
+
+def on_tick(context, tick):
+    data = context.data(symbol=tick['symbol'], frequency='tick', count=10)
+    print(data)
+ 
+        复制成功
+    
+输出：
+{'symbol': 'SHSE.600519', 'price': [1642.0, 1642.0, 1642.0, 1642.0, 1642.0, 1642.0, 1642.0, 1642.0, 1642.0, 0.0], 'bid_p': [1640.0, 1640.0, 1640.0, 1640.0, 1640.0, 1640.0, 1640.0, 1640.0, 1640.0, 0.0], 'created_at': [datetime.datetime(2024, 1, 22, 15, 1, 12, 280000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), datetime.datetime(2024, 1, 22, 15, 1, 21, 277000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), datetime.datetime(2024, 1, 22, 15, 1, 24, 278000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), datetime.datetime(2024, 1, 22, 15, 1, 33, 280000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), datetime.datetime(2024, 1, 22, 15, 1, 36, 282000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), datetime.datetime(2024, 1, 22, 15, 1, 39, 279000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), datetime.datetime(2024, 1, 22, 15, 1, 48, 283000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), datetime.datetime(2024, 1, 22, 15, 1, 51, 286000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), datetime.datetime(2024, 1, 22, 15, 1, 54, 280000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), datetime.datetime(2024, 1, 23, 9, 14, 1, 91000, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai'))]}
+ 
+        复制成功
+    
+注意：
+1. 只有在订阅后，此接口才能取到数据，如未订阅数据，则返回报错。
+2. symbol 参数只支持输入一个标的。
+3. count 参数必须小于或等于订阅函数里面的 count 值。
+4. fields 参数必须在订阅函数subscribe里面指定的 fields 范围内。指定字段越少，查询速度越快，目前效率是row > col > df。
+5. 当subscribe的format指定col时，tick的quotes字段会被拆分，只返回买卖一档的量和价，即只有bid_p，bid_v, ask_p和ask_v。
+#get_history_l2ticks - 查询历史 L2 Tick 行情
+仅特定券商付费提供
+函数原型：
+ get_history_l2ticks(symbols, start_time, end_time, fields=None,skip_suspended=True, fill_missing=None,adjust=ADJUST_NONE, adjust_end_time='', df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+symbols	str	标的代码，使用时参考symbol
+
+start_time	str	开始时间 (%Y-%m-%d %H:%M:%S 格式)
+end_time	str	结束时间 (%Y-%m-%d %H:%M:%S 格式)
+fields	str	指定返回对象字段, 如有多个字段, 中间用, 隔开, 默认所有
+skip_suspended	bool	是否跳过停牌, 默认跳过
+fill_missing	str or None	填充方式, None - 不填充, 'NaN' - 用空值填充, 'Last' - 用上一个值填充, 默认 None
+adjust	int	ADJUST_NONE or 0: 不复权, ADJUST_PREV or 1: 前复权, ADJUST_POST or 2: 后复权 默认不复权
+adjust_end_time	str	复权基点时间, 默认当前时间
+df	bool	是否返回 dataframe 格式, 默认 False
+返回值:参考tick 对象
+当 df = True 时， 返回dataframe
+当 df = Falst， 返回list 示例：
+history_l2tick=get_history_l2ticks('SHSE.600519', '2020-11-23 14:00:00', '2020-11-23 15:00:00', fields=None,
+                        skip_suspended=True, fill_missing=None,
+                        adjust=ADJUST_NONE, adjust_end_time='', df=False)
+print(history_l2tick[0])
+ 
+        复制成功
+    
+输出：
+{'symbol': 'SHSE.600519', 'open': 1771.010009765625, 'high': 1809.9000244140625, 'low': 1771.010009765625, 'price': 1791.0999755859375, 'quotes': [{'bid_p': 1790.8800048828125, 'bid_v': 100, 'ask_p': 1794.760009765625, 'ask_v': 200}, {'bid_p': 1790.80004882812
+5, 'bid_v': 123, 'ask_p': 1794.800048828125, 'ask_v': 100}, {'bid_p': 1790.699951171875, 'bid_v': 100, 'ask_p': 1794.8800048828125, 'ask_v': 416}, {'bid_p': 1790.68994140625, 'bid_v': 200, 'ask_p': 1794.8900146484375, 'ask_v': 300}, {'bid_p': 1790.630004882812
+5, 'bid_v': 300, 'ask_p': 1794.9000244140625, 'ask_v': 1000}, {'bid_p': 1790.6199951171875, 'bid_v': 500, 'ask_p': 1794.949951171875, 'ask_v': 300}, {'bid_p': 1790.6099853515625, 'bid_v': 300, 'ask_p': 1794.9599609375, 'ask_v': 300}, {'bid_p': 1790.59997558593
+75, 'bid_v': 200, 'ask_p': 1794.97998046875, 'ask_v': 100}, {'bid_p': 1790.510009765625, 'bid_v': 314, 'ask_p': 1794.989990234375, 'ask_v': 200}, {'bid_p': 1790.5, 'bid_v': 4200, 'ask_p': 1795.0, 'ask_v': 9700}], 'cum_volume': 5866796, 'cum_amount': 1049949547
+1.0, 'last_amount': 1973854.0, 'last_volume': 1100, 'created_at': datetime.datetime(2020, 11, 23, 14, 0, 2, tzinfo=tzfile('PRC')), 'cum_position': 0, 'trade_type': 0}
+ 
+        复制成功
+    
+注意：
+1. get_history_l2ticks接口每次只能提取一天的数据, 如果取数时间超过一天，则返回按照结束时间的最近有一个交易日数据， 如果取数时间段超过 1 个自然月（31）天，则获取不到数据
+#get_history_l2bars - 查询历史 L2 Bar 行情
+仅特定券商付费提供
+函数原型：
+ get_history_l2bars(symbols, frequency, start_time, end_time, fields=None,skip_suspended=True, fill_missing=None,adjust=ADJUST_NONE, adjust_end_time='', df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+symbols	str	标的代码，使用时参考symbol
+
+frequency	str	频率, 支持 '1d', '60s'等
+start_time	str	开始时间 (%Y-%m-%d %H:%M:%S 格式)
+end_time	str	结束时间 (%Y-%m-%d %H:%M:%S 格式)
+fields	str	指定返回对象字段, 如有多个字段, 中间用, 隔开, 默认所有
+skip_suspended	bool	是否跳过停牌, 默认跳过
+fill_missing	str or None	填充方式, None - 不填充, 'NaN' - 用空值填充, 'Last' - 用上一个值填充, 默认 None
+adjust	int	ADJUST_NONE or 0: 不复权, ADJUST_PREV or 1: 前复权, ADJUST_POST or 2: 后复权 默认不复权
+adjust_end_time	str	复权基点时间, 默认当前时间
+df	bool	是否返回 dataframe 格式, 默认 False
+返回值:参考bar 对象。
+当 df = True 时， 返回dataframe
+当 df = Falst， 返回list
+示例：
+history_l2bar=get_history_l2bars('SHSE.600000', '60s', '2020-11-23 14:00:00', '2020-11-23 15:00:00', fields=None,
+								skip_suspended=True, fill_missing=None,
+								adjust=ADJUST_NONE, adjust_end_time='', df=False)
+print(history_l2bar[0])
+
+ 
+        复制成功
+    
+输出：
+{'symbol': 'SHSE.600000', 'frequency': '60s', 'open': 9.90999984741211, 'high': 9.90999984741211, 'low': 9.890000343322754, 'close': 9.899999618530273, 'volume': 1270526, 'amount': 12574276.0, 'bob': datetime.datetime(2020, 11, 23, 14, 0, tzinfo=tzfile('PRC'))
+, 'eob': datetime.datetime(2020, 11, 23, 14, 1, tzinfo=tzfile('PRC')), 'position': 0, 'pre_close': 0.0}
+ 
+        复制成功
+    
+注意：
+1. get_history_l2bars接口每次最多可提取 1 个自然月（31）天的数据如：2015.1.1-2015.1.31 错误设置：（2015.1.1-2015.2.1）超出 31 天则获取不到任何数据
+#get_history_l2transactions - 查询历史 L2 逐笔成交
+仅特定券商付费提供
+函数原型：
+ get_history_l2transactions(symbols, start_time, end_time, fields=None, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+symbols	str	标的代码，使用时参考symbol
+
+start_time	str	开始时间 (%Y-%m-%d %H:%M:%S 格式)
+end_time	str	结束时间 (%Y-%m-%d %H:%M:%S 格式)
+fields	str	指定返回对象字段, 如有多个字段, 中间用, 隔开, 默认所有
+df	bool	是否返回 dataframe 格式, 默认 False
+返回值:参考level2 逐笔成交数据
+当 df = True 时， 返回dataframe
+当 df = Falst， 返回list
+示例：
+history_transactions=get_history_l2transactions('SHSE.600000', '2020-11-23 14:00:00', '2020-11-23 15:00:00', fields=None, df=False)
+print(history_transactions[0])
+ 
+        复制成功
+    
+输出：
+{'symbol': 'SHSE.600000', 'side': 'B', 'price': 9.90999984741211, 'volume': 100, 'created_at': datetime.datetime(2020, 11, 23, 14, 0, 0, 820000, tzinfo=tzfile('PRC')), 'exec_type': ''}
+ 
+        复制成功
+    
+注意：
+1. get_history_l2transactions接口每次只能提取一天的数据, 如果取数时间超过一天，则返回按照开始时间的最近有一个交易日数据
+#get_history_l2orders - 查询历史 L2 逐笔委托
+仅特定券商付费提供 注意： 仅深市标的可用
+函数原型：
+ get_history_l2orders(symbols, start_time, end_time, fields=None, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+symbols	str	标的代码，使用时参考symbol
+
+start_time	str	开始时间 (%Y-%m-%d %H:%M:%S 格式)
+end_time	str	结束时间 (%Y-%m-%d %H:%M:%S 格式)
+fields	str	指定返回对象字段, 如有多个字段, 中间用, 隔开, 默认所有
+df	bool	是否返回 dataframe 格式, 默认 False
+返回值:参考level2 逐笔委托数据
+当 df = True 时， 返回dataframe
+当 df = Falst， 返回list
+示例：
+history_order=get_history_l2orders('SZSE.000001', '2020-11-23 14:00:00', '2020-11-23 15:00:00', fields=None, df=False)
+print(history_order[0])
+ 
+        复制成功
+    
+输出：
+{'symbol': 'SZSE.000001', 'side': '1', 'price': 19.520000457763672, 'volume': 200, 'created_at': datetime.datetime(2020, 11, 23, 14, 0, 0, 110000, tzinfo=tzfile('PRC')), 'order_type': '2'}
+ 
+        复制成功
+    
+注意：
+1. get_history_l2orders接口每次只能提取一天的数据, 如果取数时间超过一天，则返回按照开始时间的最近有一个交易日数据
+#get_history_l2orders_queue - 查询历史 L2 委托队列
+仅特定券商付费提供
+函数原型：
+ get_history_l2orders_queue(symbols, start_time, end_time, fields=None, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+symbols	str	标的代码，使用时参考symbol
+
+start_time	str	开始时间 (%Y-%m-%d %H:%M:%S 格式)
+end_time	str	结束时间 (%Y-%m-%d %H:%M:%S 格式)
+fields	str	指定返回对象字段, 如有多个字段, 中间用, 隔开, 默认所有
+df	bool	是否返回 dataframe 格式, 默认 False
+返回值:参考 level2 委托队列据
+当 df = True 时， 返回dataframe
+当 df = Falst， 返回list
+示例：
+history_order_queue=get_history_l2orders_queue('SHSE.600000', '2020-11-23 14:00:00', '2020-11-23 15:00:00', fields=None, df=False)
+print(history_order_queue[0])
+ 
+        复制成功
+    
+输出：
+{'symbol': 'SHSE.600000', 'price': 9.90999984741211, 'total_orders': 155, 'queue_orders': 50, 'queue_volumes': [52452, 600, 1200, 3200, 10000, 1800, 1000, 300, 10000, 2000, 500, 500, 2000, 1000, 2000, 300, 1200, 1400, 1000, 200, 1000, 100, 500, 1000, 500, 2380
+0, 25400, 1000, 2000, 200, 500, 1200, 5000, 2000, 17600, 5000, 1000, 1300, 1000, 1200, 1000, 3000, 1000, 1000, 15000, 400, 15000, 5000, 2000, 10000], 'created_at': datetime.datetime(2020, 11, 23, 14, 0, 1, tzinfo=tzfile('PRC')), 'side': '', 'volume': 0}
+ 
+        复制成功
+    
+注意：
+1. get_history_l2orders_queue接口每次只能提取一天的数据, 如果取数时间超过一天，则返回按照开始时间的最近有一个交易日数据
+get_symbol_infos - 查询标的基本信息
+获取指定(范围)交易标的基本信息，与时间无关.
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准
+函数原型：
+get_symbol_infos(sec_type1, sec_type2=None, exchanges=None, symbols=None, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+sec_type1	int	证券品种大类	Y	无	指定一种证券大类，只能输入一个. 证券大类 sec_type1 清单 1010: 股票， 1020: 基金， 1030: 债券 ， 1040: 期货， 1050: 期权， 1060: 指数，1070：板块.
+sec_type2	int	证券品种细类	N	None	指定一种证券细类，只能输入一个. 默认None表示不区分细类，即证券大类下所有细类. 证券细类见 sec_type2 清单 - 股票 101001:A 股，101002:B 股，101003:存托凭证 - 基金 102001:ETF，102002:LOF，102005:FOF - 债券 103001:可转债，103008:回购 - 期货 104001:股指期货，104003:商品期货，104006:国债期货 - 期权 105001:股票期权，105002:指数期权，105003:商品期权 - 指数 106001:股票指数，106002:基金指数，106003:债券指数，106004:期货指数 - 板块：107001:概念板块
+exchanges	str or list	交易所代码	N	None	输入交易所代码，可输入多个. 采用 str 格式时，多个交易所代码必须用英文逗号分割，如：'SHSE,SZSE' 采用 list 格式时，多个交易所代码示例：['SHSE', 'SZSE'] 默认None表示所有交易所. 交易所代码清单 SHSE:上海证券交易所，SZSE:深圳证券交易所 ， CFFEX:中金所，SHFE:上期所，DCE:大商所， CZCE:郑商所， INE:上海国际能源交易中心 ，GFEX:广期所
+symbols	str or list	标的代码	N	None	输入标的代码，可输入多个. 采用 str 格式时，多个标的代码必须用英文逗号分割，如：'SHSE.600008,SZSE.000002' 采用 list 格式时，多个标的代码示例：['SHSE.600008', 'SZSE.000002'] 默认None表示所有标的.
+df	bool	返回格式	N	False	是否返回 dataframe 格式，默认False返回字典格式，返回 list[dict]， 列表每项的 dict 的 key 值为 fields 字段.
+返回值：
+字段名	类型	中文名称	说明	股票字段	基金字段	债券字段	期货字段	期权字段	指数字段
+symbol	str	标的代码	exchange.sec_id	√	√	√	√	√	√
+sec_type1	int	证券品种大类	1010: 股票，1020: 基金， 1030: 债券，1040: 期货， 1050: 期权，1060: 指数，1070：板块	√	√	√	√	√	√
+sec_type2	int	证券品种细类	- 股票 101001:A 股，101002:B 股，101003:存托凭证 - 基金 102001:ETF，102002:LOF，102005:FOF - 债券 103001:可转债，103003:国债，103006:企业债，103008:回购 - 期货 104001:股指期货，104003:商品期货，104006:国债期货 - 期权 105001:股票期权，105002:指数期权，105003:商品期权 - 指数 106001:股票指数，106002:基金指数，106003:债券指数，106004:期货指数 - 板块：107001:概念板块	√	√	√	√	√	√
+board	int	板块	A 股 10100101:主板 A 股 10100102:创业板 10100103:科创版 10100104:北交所股票 ETF 10200101:股票 ETF 10200102:债券 ETF 10200103:商品 ETF 10200104:跨境 ETF 10200105:货币 ETF 可转债 10300101:普通可转债 10300102:可交换债券 10300103:可分离式债券 10300104:定向可转债	√	√	√	无	无	无
+exchange	str	交易所代码	SHSE:上海证券交易所， SZSE:深圳证券交易所， CFFEX:中金所， SHFE:上期所， DCE:大商所， CZCE:郑商所， INE:上海国际能源交易中心 ，GFEX:广期所	√	√	√	√	√	√
+sec_id	str	交易所标的代码	股票,基金,债券,指数的证券代码; 期货,期权的合约代码	√	√	√	√	√	√
+sec_name	str	交易所标的名称	股票,基金,债券,指数的证券名称; 期货,期权的合约名称	√	√	√	√	√	√
+sec_abbr	str	交易所标的简称	拼音或英文简称	√	√	√	√	√	√
+price_tick	float	最小变动单位	交易标的价格最小变动单位	√	√	√	√	√	√
+trade_n	int	交易制度	0 表示 T+0，1 表示 T+1，2 表示 T+2	√	√	√	√	√	√
+listed_date	datetime.datetime	上市日期	证券/指数的上市日、衍生品合约的挂牌日	√	√	√	√	√	√
+delisted_date	datetime.datetime	退市日期	股票/基金的退市日， 期货/期权的到期日(最后交易日)， 可转债的赎回登记日	√	√	√	√	√	√
+underlying_symbol	str	标的资产	期货/期权的合约标的物 symbol，可转债的正股标的 symbol	无	无	√	√	√	无
+option_type	str	行权方式	期权行权方式，仅期权适用，E:欧式，A:美式	无	无	无	无	√	无
+option_margin_ratio1	float	期权保证金计算系数 1	计算期权单位保证金的第 1 个系数，仅期权适用	无	无	无	无	√	无
+option_margin_ratio2	float	期权保证金计算系数 2	计算期权单位保证金的第 2 个系数，仅期权适用	无	无	无	无	√	无
+call_or_put	str	合约类型	期权合约类型，仅期权适用，C:Call(认购或看涨)， P:Put(认沽或看跌)	无	无	无	无	√	无
+conversion_start_date	datetime.datetime	可转债开始转股日期	可转债初始转股价的执行日期，仅可转债适用	无	无	√	无	无	无
+示例：
+get_symbol_infos(sec_type1=1010, symbols='SHSE.600008,SZSE.000002')
+ 
+        复制成功
+    
+输出：
+[{'symbol': 'SHSE.600008', 'sec_type1': 1010, 'sec_type2': 101001, 'board': 10100101, 'exchange': 'SHSE', 'sec_id': '600008', 'sec_name': '首创环保', 'sec_abbr': 'SCHB', 'price_tick': 0.01, 'trade_n': 1, 'listed_date': datetime.datetime(2000, 4, 27, 0, 0, tzinfo=tzfile('PRC')), 'delisted_date': datetime.datetime(2038, 1, 1, 0, 0, tzinfo=tzfile('PRC')), 'underlying_symbol': '', 'option_type': '', 'option_margin_ratio1': 0.0, 'option_margin_ratio2': 0.0, 'call_or_put': '', 'conversion_start_date': None},
+ {'symbol': 'SZSE.000002', 'sec_type1': 1010, 'sec_type2': 101001, 'board': 10100101, 'exchange': 'SZSE', 'sec_id': '000002', 'sec_name': '万科A', 'sec_abbr': 'WKA', 'price_tick': 0.01, 'trade_n': 1, 'listed_date': datetime.datetime(1991, 1, 29, 0, 0, tzinfo=tzfile('PRC')), 'delisted_date': datetime.datetime(2038, 1, 1, 0, 0, tzinfo=tzfile('PRC')), 'underlying_symbol': '', 'option_type': '', 'option_margin_ratio1': 0.0, 'option_margin_ratio2': 0.0, 'call_or_put': '', 'conversion_start_date': None}]
+ 
+        复制成功
+    
+注意：
+1. sec_type1为必填参数，即一次只能查询一个品种的标的基本信息。
+2. 查询的标的信息根据参数组合sec_type1, sec_type2, exchanges, symbols取交集，若输入参数之间出现任何矛盾（换句话说，所有的参数限制出满足要求的交集为空)，则返回空list/空DataFrame ，例如get_symbol_infos(sec_type1=1040，exchanges='SZSE')返回的是空值。
+3. 若输入包含无效标的代码symbols，则返回的list/DataFrame只包含有效标的代码对应的数据。
+4. 参数组合示例：
+查询以下范围 symbol 的基本信息	sec_type1	sec_type2	exchanges	symbols
+查询指定股票	1010	None	None	'SHSE.600008,SZSE.000002'
+查询 A 股股票	1010	101001	None	None
+查询深交所股票	1010	None	'SZSE'	None
+查询 ETF	1020	102001	None	None
+查询上交所 LOF	1020	102002	'SHSE'	None
+查询可转债	1030	103001	None	None
+查询深交所可转债	1030	103001	'SZSE'	None
+查询股指期货	1040	104001	None	None
+查询商品期货	1040	104003	None	None
+查询郑商所和大商所期货	1040	None	'CZCE,DCE'	None
+查询股票期权	1050	105001	None	None
+查询上交所股票期权	1050	105001	'SHSE'	None
+查询指数期权	1050	105002	None	None
+查询商品期权	1050	105003	None	None
+查询上期所商品期权	105003	None	'SHFE'	None
+查询股票指数	1060	106001	None	None
+#get_symbols - 查询指定交易日多标的交易信息
+获取指定交易日多个标的交易信息，包括基本信息及日度数据.
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准
+函数原型：
+get_symbols(sec_type1, sec_type2=None, exchanges=None, symbols=None, skip_suspended=True, skip_st=True, trade_date=None, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+sec_type1	int	证券品种大类	Y	无	指定一种证券大类，只能输入一个. 证券大类 sec_type1 清单 1010: 股票， 1020: 基金， 1030: 债券 ， 1040: 期货， 1050: 期权， 1060: 指数，1070：板块.
+sec_type2	int	证券品种细类	N	None	指定一种证券细类，只能输入一个. 默认None表示不区分细类，即证券大类下所有细类. 证券细类见 sec_type2 清单 - 股票 101001:A 股，101002:B 股，101003:存托凭证 - 基金 102001:ETF，102002:LOF，102005:FOF - 债券 103001:可转债，103008:回购 - 期货 104001:股指期货，104003:商品期货，104006:国债期货 - 期权 105001:股票期权，105002:指数期权，105003:商品期权 - 指数 106001:股票指数，106002:基金指数，106003:债券指数，106004:期货指数 - 板块：107001:概念板块
+exchanges	str or list	交易所代码	N	None	输入交易所代码，可输入多个. 采用 str 格式时，多个交易所代码必须用英文逗号分割，如：'SHSE,SZSE' 采用 list 格式时，多个交易所代码示例：['SHSE', 'SZSE'] 默认None表示所有交易所. 交易所代码清单 SHSE:上海证券交易所，SZSE:深圳证券交易所 ， CFFEX:中金所，SHFE:上期所，DCE:大商所， CZCE:郑商所， INE:上海国际能源交易中心 ，GFEX:广期所
+symbols	str or list	标的代码	N	None	输入标的代码，可输入多个. 采用 str 格式时，多个标的代码必须用英文逗号分割，如：'SHSE.600008,SZSE.000002' 采用 list 格式时，多个标的代码示例：['SHSE.600008', 'SZSE.000002'] 默认None表示所有标的.
+skip_suspended	bool	跳过停牌	N	True	是否跳过全天停牌，默认True跳过
+skip_st	bool	跳过 ST	N	True	是否跳过包含 ST 的股票：ST, *ST, SST, S*ST, 默认True跳过
+trade_date	str	交易日期	N	None	交易日期，%Y-%m-%d 格式，默认None取最新截面(包含退市标的)
+df	bool	返回格式	N	False	是否返回 dataframe 格式，默认False返回字典格式，返回 list[dict]， 列表每项的 dict 的 key 值为 fields 字段.
+返回值：
+字段名	类型	中文名称	说明	股票字段	基金字段	债券字段	期货字段	期权字段	指数字段
+trade_date	datetime.datetime	交易日期	最新交易日的日期	√	√	√	√	√	√
+symbol	str	标的代码	exchange.sec_id	√	√	√	√	√	√
+sec_type1	int	证券品种大类	1010: 股票，1020: 基金， 1030: 债券，1040: 期货， 1050: 期权，1060: 指数，1070：板块	√	√	√	√	√	√
+sec_type2	int	证券品种细类	- 股票 101001:A 股，101002:B 股，101003:存托凭证 - 基金 102001:ETF，102002:LOF，102005:FOF - 债券 103001:可转债，103008:回购 - 期货 104001:股指期货，104003:商品期货，104006:国债期货 - 期权 105001:股票期权，105002:指数期权，105003:商品期权 - 指数 106001:股票指数，106002:基金指数，106003:债券指数，106004:期货指数 - 板块：107001:概念板块	√	√	√	√	√	√
+board	int	板块	A 股 10100101:主板 A 股 10100102:创业板 10100103:科创版 10100104:北交所股票 ETF 10200101:股票 ETF 10200102:债券 ETF 10200103:商品 ETF 10200104:跨境 ETF 10200105:货币 ETF 可转债 10300101:普通可转债 10300102:可交换债券 10300103:可分离式债券 10300104:定向可转债	√	√	√	无	无	无
+exchange	str	交易所代码	SHSE:上海证券交易所， SZSE:深圳证券交易所， CFFEX:中金所， SHFE:上期所， DCE:大商所， CZCE:郑商所， INE:上海国际能源交易中心 ，GFEX:广期所	√	√	√	√	√	√
+sec_id	str	交易所标的代码	股票,基金,债券,指数的证券代码; 期货,期权的合约代码	√	√	√	√	√	√
+sec_name	str	交易所标的名称	股票,基金,债券,指数的证券名称; 期货,期权的合约名称	√	√	√	√	√	√
+sec_abbr	str	交易所标的简称	拼音或英文简称	√	√	√	√	√	√
+price_tick	float	最小变动单位	交易标的价格最小变动单位	√	√	√	√	√	√
+trade_n	int	交易制度	0 表示 T+0，1 表示 T+1，2 表示 T+2	√	√	√	√	√	√
+listed_date	datetime.datetime	上市日期	证券/指数的上市日、衍生品合约的挂牌日	√	√	√	√	√	√
+delisted_date	datetime.datetime	退市日期	股票/基金的退市日， 期货/期权的到期日(最后交易日)， 可转债的赎回登记日	√	√	√	√	√	√
+underlying_symbol	str	标的资产	期货/期权的合约标的物 symbol，可转债的正股标的 symbol	无	无	√	√	√	无
+option_type	str	行权方式	期权行权方式，仅期权适用，E:欧式，A:美式	无	无	无	无	√	无
+option_margin_ratio1	float	期权保证金计算系数 1	计算期权单位保证金的第 1 个系数，仅期权适用	无	无	无	无	√	无
+option_margin_ratio2	float	期权保证金计算系数 2	计算期权单位保证金的第 2 个系数，仅期权适用	无	无	无	无	√	无
+call_or_put	str	合约类型	期权合约类型，仅期权适用，C:Call(认购或看涨)， P:Put(认沽或看跌)	无	无	无	无	√	无
+conversion_start_date	datetime.datetime	可转债开始转股日期	可转债初始转股价的执行日期，仅可转债适用	无	无	√	无	无	无
+is_adjusted	bool	合约调整	是否调整合约，True:是，False:否（调整后会产生新的新的合约名称、新的行权价格、新的合约乘数）	无	无	无	无	√	无
+is_suspended	bool	是否停牌	是否停牌，True:是，False:否	√	√	√	无	无	无
+is_st	bool	是否 ST	是否 ST，True: 是 ST 类（含ST, *ST, SST, S*ST）, False: 否	√	无	无	无	无	无
+position	int	持仓量	当日累计持仓量(当日盘后更新)	无	无	无	√	√	无
+settle_price	float	结算价	当日结算价(当日盘后更新)	无	无	无	√	√	无
+pre_settle	float	昨结价	昨日结算价	无	无	无	√	√	无
+pre_close	float	昨收价	昨日收盘价	√	√	√	√	√	√
+upper_limit	float	涨停价	当日涨停价（首次公开发行上市的股票上市前 5 日无涨跌停价，返回0）	√	√	√	√	√	无
+lower_limit	float	跌停价	当日跌停价（首次公开发行上市的股票上市前 5 日无涨跌停价，返回0）	√	√	√	√	√	无
+turn_rate	float	换手率	当日换手率(%)(当日盘后更新)	√	√	无	无	无	√
+adj_factor	float	复权因子	当日累计后复权因子	√	√	无	无	无	无
+margin_ratio	float	保证金比例	期货最新保证金比例（交易所标准的最新期货保证金）	无	无	无	√	无	无
+conversion_price	float	转股价	可转债最新转股价（转股价变动后的最新转股价）	无	无	√	无	无	无
+exercise_price	float	行权价	期权最新行权价（期权合约调整后的最新行权价）	无	无	无	无	√	无
+multiplier	int	合约乘数	期货和期权合约最新合约乘数（期权合约调整后的最新合约乘数）	无	无	无	√	√	无
+示例：
+get_symbols(sec_type1=1010, symbols='SHSE.600008,SZSE.000002', trade_date='2022-01-13')
+ 
+        复制成功
+    
+输出：
+[{'trade_date': datetime.datetime(2022, 1, 13, 0, 0, tzinfo=tzfile('PRC')), 'pre_close': 3.47, 'upper_limit': 3.82, 'lower_limit': 3.12, 'turn_rate': 1.1215, 'adj_factor': 6.5564, 'margin_ratio': 1.0, 'multiplier': 1, 'is_adjusted': False, 'is_suspended': False, 'position': 0, 'settle_price': 0.0, 'pre_settle': 0.0, 'conversion_price': 0.0, 'exercise_price': 0.0, 'is_st': False, 'symbol': 'SHSE.600008', 'sec_type1': 1010, 'sec_type2': 101001, 'board': 10100101, 'exchange': 'SHSE', 'sec_id': '600008', 'sec_name': '首创环保', 'sec_abbr': 'SCHB', 'price_tick': 0.01, 'trade_n': 1, 'listed_date': datetime.datetime(2000, 4, 27, 0, 0, tzinfo=tzfile('PRC')), 'delisted_date': datetime.datetime(2038, 1, 1, 0, 0, tzinfo=tzfile('PRC')), 'underlying_symbol': '', 'option_type': '', 'option_margin_ratio1': 0.0, 'option_margin_ratio2': 0.0, 'call_or_put': '', 'conversion_start_date': None},
+ {'trade_date': datetime.datetime(2022, 1, 13, 0, 0, tzinfo=tzfile('PRC')), 'pre_close': 22.05, 'upper_limit': 24.26, 'lower_limit': 19.85, 'turn_rate': 0.9394, 'adj_factor': 173.0897, 'margin_ratio': 1.0, 'multiplier': 1, 'is_adjusted': False, 'is_suspended': False, 'position': 0, 'settle_price': 0.0, 'pre_settle': 0.0, 'conversion_price': 0.0, 'exercise_price': 0.0, 'is_st': False, 'symbol': 'SZSE.000002', 'sec_type1': 1010, 'sec_type2': 101001, 'board': 10100101, 'exchange': 'SZSE', 'sec_id': '000002', 'sec_name': '万科A', 'sec_abbr': 'WKA', 'price_tick': 0.01, 'trade_n': 1, 'listed_date': datetime.datetime(1991, 1, 29, 0, 0, tzinfo=tzfile('PRC')), 'delisted_date': datetime.datetime(2038, 1, 1, 0, 0, tzinfo=tzfile('PRC')), 'underlying_symbol': '', 'option_type': '', 'option_margin_ratio1': 0.0, 'option_margin_ratio2': 0.0, 'call_or_put': '', 'conversion_start_date': None}]
+ 
+        复制成功
+    
+注意：
+1. sec_type1为必填参数，即一次只能查询一个品种的标的最新交易日信息。
+2. 查询的标的信息根据参数组合sec_type1, sec_type2, exchanges, symbols取交集，若输入参数之间出现任何矛盾（换句话说，所有的参数限制出满足要求的交集为空)，则返回空list/空DataFrame ，例如get_symbols(sec_type1=1040, exchanges='SZSE')返回的是空值。
+3. 若输入包含无效标的代码symbols，则返回的list/DataFrame只包含有效标的代码对应的数据。
+4. 获取全 A 股票代码示例get_symbols(sec_type1=1010, sec_type2=101001, df=True)['symbol'].tolist()
+5. 可转债的到期日(退市日期)为delisted_date，转股价值为转股价值 = 转股数*股价 = (100/可转债转股价) * 股价
+#get_history_symbol - 查询指定标的多日交易信息
+获取指定标的多个历史交易日的交易信息，包括基本信息及日度数据.
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准
+函数原型：
+get_history_symbol(symbol=None, start_date=None, end_date=None, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+symbol	str	标的代码	Y	无	输入标的代码，只能输入一个.
+start_date	str	开始时间	N	None	开始时间日期，%Y-%m-%d 格式，默认None表示当前时间
+end_date	str	结束时间	N	None	结束时间日期，%Y-%m-%d 格式，默认None表示当前时间
+df	bool	返回格式	N	False	是否返回 dataframe 格式，默认False返回字典格式，返回 list[dict]， 列表每项的 dict 的 key 值为 fields 字段.
+返回值：
+字段名	类型	中文名称	说明	股票字段	基金字段	债券字段	期货字段	期权字段	指数字段
+trade_date	datetime.datetime	交易日期	最新交易日的日期	√	√	√	√	√	√
+symbol	str	标的代码	exchange.sec_id	√	√	√	√	√	√
+sec_type1	int	证券品种大类	1010: 股票，1020: 基金， 1030: 债券，1040: 期货， 1050: 期权，1060: 指数，1070：板块	√	√	√	√	√	√
+sec_type2	int	证券品种细类	- 股票 101001:A 股，101002:B 股，101003:存托凭证 - 基金 102001:ETF，102002:LOF，102005:FOF - 债券 103001:可转债，103008:回购 - 期货 104001:股指期货，104003:商品期货，104006:国债期货 - 期权 105001:股票期权，105002:指数期权，105003:商品期权 - 指数 106001:股票指数，106002:基金指数，106003:债券指数，106004:期货指数 - 板块：107001:概念板块	√	√	√	√	√	√
+board	int	板块	A 股 10100101:主板 A 股 10100102:创业板 10100103:科创版 10100104:北交所股票 ETF 10200101:股票 ETF 10200102:债券 ETF 10200103:商品 ETF 10200104:跨境 ETF 10200105:货币 ETF 可转债 10300101:普通可转债 10300102:可交换债券 10300103:可分离式债券 10300104:定向可转债	√	√	√	无	无	无
+exchange	str	交易所代码	SHSE:上海证券交易所， SZSE:深圳证券交易所， CFFEX:中金所， SHFE:上期所， DCE:大商所， CZCE:郑商所， INE:上海国际能源交易中心 ，GFEX:广期所	√	√	√	√	√	√
+sec_id	str	交易所标的代码	股票,基金,债券,指数的证券代码; 期货,期权的合约代码	√	√	√	√	√	√
+sec_name	str	交易所标的名称	股票,基金,债券,指数的证券名称; 期货,期权的合约名称	√	√	√	√	√	√
+sec_abbr	str	交易所标的简称	拼音或英文简称	√	√	√	√	√	√
+price_tick	float	最小变动单位	交易标的价格最小变动单位	√	√	√	√	√	√
+trade_n	int	交易制度	0 表示 T+0，1 表示 T+1，2 表示 T+2	√	√	√	√	√	√
+listed_date	datetime.datetime	上市日期	证券/指数的上市日、衍生品合约的挂牌日	√	√	√	√	√	√
+delisted_date	datetime.datetime	退市日期	股票/基金的退市日， 期货/期权的到期日(最后交易日)， 可转债的赎回登记日	√	√	√	√	√	√
+underlying_symbol	str	标的资产	期货/期权的合约标的物 symbol，可转债的正股标的 symbol	无	无	√	√	√	无
+option_type	str	行权方式	期权行权方式，仅期权适用，E:欧式，A:美式	无	无	无	无	√	无
+option_margin_ratio1	float	期权保证金计算系数 1	计算期权单位保证金的第 1 个系数，仅期权适用	无	无	无	无	√	无
+option_margin_ratio2	float	期权保证金计算系数 2	计算期权单位保证金的第 2 个系数，仅期权适用	无	无	无	无	√	无
+call_or_put	str	合约类型	期权合约类型，仅期权适用，C:Call(认购或看涨)， P:Put(认沽或看跌)	无	无	无	无	√	无
+conversion_start_date	datetime.datetime	可转债开始转股日期	可转债初始转股价的执行日期，仅可转债适用	无	无	√	无	无	无
+is_adjusted	bool	合约调整	是否调整合约，True:是，False:否（调整后会产生新的新的合约名称、新的行权价格、新的合约乘数）	无	无	无	无	√	无
+is_suspended	bool	是否停牌	是否停牌，True:是，False:否	√	√	√	无	无	无
+is_st	bool	是否 ST	是否 ST，True: 是 ST 类（含ST, *ST, SST, S*ST）, False: 否	√	无	无	无	无	无
+position	int	持仓量	当日累计持仓量(当日盘后更新)	无	无	无	√	√	无
+settle_price	float	结算价	当日结算价(当日盘后更新)	无	无	无	√	√	无
+pre_settle	float	昨结价	昨日结算价	无	无	无	√	√	无
+pre_close	float	昨收价	昨日收盘价	√	√	√	√	√	√
+upper_limit	float	涨停价	当日涨停价（首次公开发行上市的股票上市前 5 日无涨跌停价，返回0）	√	√	√	√	√	无
+lower_limit	float	跌停价	当日跌停价（首次公开发行上市的股票上市前 5 日无涨跌停价，返回0）	√	√	√	√	√	无
+turn_rate	float	换手率	当日换手率(%)(当日盘后更新)	√	√	无	无	无	√
+adj_factor	float	复权因子	当日累计后复权因子	√	√	无	无	无	无
+margin_ratio	float	保证金比例	期货在指定交易日的交易所保证金比例	无	无	无	√	无	无
+conversion_price	float	转股价	可转债在指定交易日的转股价	无	无	√	无	无	无
+exercise_price	float	行权价	期权在指定交易日的行权价	无	无	无	无	√	无
+multiplier	int	合约乘数	期货/期权合约在指定交易日的合约乘数	无	无	无	√	√	无
+示例：
+get_history_symbol(symbol='SZSE.000002', start_date='2022-09-01', end_date='2022-09-30', df=True)
+ 
+        复制成功
+    
+输出：
+                  trade_date  pre_close  ...  conversion_start_date
+0  2022-09-01 00:00:00+08:00      16.63  ...                   None
+1  2022-09-02 00:00:00+08:00      16.84  ...                   None
+2  2022-09-05 00:00:00+08:00      16.80  ...                   None
+3  2022-09-06 00:00:00+08:00      17.17  ...                   None
+4  2022-09-07 00:00:00+08:00      17.85  ...                   None
+5  2022-09-08 00:00:00+08:00      17.52  ...                   None
+6  2022-09-09 00:00:00+08:00      17.58  ...                   None
+7  2022-09-13 00:00:00+08:00      18.15  ...                   None
+8  2022-09-14 00:00:00+08:00      18.18  ...                   None
+9  2022-09-15 00:00:00+08:00      17.91  ...                   None
+10 2022-09-16 00:00:00+08:00      18.50  ...                   None
+11 2022-09-19 00:00:00+08:00      18.00  ...                   None
+12 2022-09-20 00:00:00+08:00      18.18  ...                   None
+13 2022-09-21 00:00:00+08:00      17.56  ...                   None
+14 2022-09-22 00:00:00+08:00      17.56  ...                   None
+15 2022-09-23 00:00:00+08:00      17.49  ...                   None
+16 2022-09-26 00:00:00+08:00      17.51  ...                   None
+17 2022-09-27 00:00:00+08:00      17.44  ...                   None
+18 2022-09-28 00:00:00+08:00      17.60  ...                   None
+19 2022-09-29 00:00:00+08:00      17.46  ...                   None
+20 2022-09-30 00:00:00+08:00      17.15  ...                   None
+
+[21 rows x 34 columns]
+ 
+        复制成功
+    
+注意：
+1. 若输入包含无效标的代码symbol，则返回的list/DataFrame只包含有效标的代码对应的数据。
+2. 停牌时且股票发生除权除息，涨停价和跌停价可能有误差。
+3. 对每个标的，数据根据trade_date的升序进行排序。
+4. start_date和end_date中月份和日期都可以只输入个位数，例:'2010-7-8'或'2017-7-30'
+5. 当start_date小于或者等于 end_date 时, 取指定时间段的数据,当 start_date > end_date时, 返回报错
+6. 可转债的到期日(退市日期)delisted_date，转股价值为转股价值 = 转股数*股价 = (100/可转债转股价) * 股价
+#get_trading_dates_by_year - 查询年度交易日历
+查询一个交易所的指定年份的交易日历.
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准
+函数原型：
+get_trading_dates_by_year(exchange, start_year, end_year)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+exchange	str	交易所代码	Y	无	只能填写一个交易所代码 交易所代码清单: SHSE:上海证券交易所，SZSE:深圳证券交易所，CFFEX:中金所，SHFE:上期所，DCE:大商所，CZCE:郑商所，INE:上海国际能源交易中心，GFEX:广期所
+start_year	int	开始年份	Y	无	查询交易日历开始年份（含），yyyy 格式
+end_year	int	结束年份	Y	无	查询交易日历结束年份（含），yyyy 格式
+返回值:dataframe
+字段名	类型	中文名称	说明
+date	str	自然日期	查询年份的自然日日期
+trade_date	str	交易日期	查询年份的交易日日期，如果所在自然日不是交易日，交易日期为空字符串''
+next_trade_date	str	下一交易日	交易日对应的下一交易日
+pre_trade_date	str	上一交易日	交易日对应的上一交易日
+示例：
+# coding=utf-8
+from __future__ import print_function, absolute_import
+from gm.api import *
+
+
+def init(context):
+
+    # 实时模式
+    if context.mode == 1:
+        context.trade_date = get_trading_dates_by_year(exchange='SHSE', start_year=int(context.now.strftime('%Y')),
+                                                       end_year=int(context.now.strftime('%Y')))
+        context.trade_date.index = context.trade_date['date']
+    # 回测模式
+    else:
+        context.trade_date = get_trading_dates_by_year(exchange='SHSE', start_year=int(context.backtest_start_time[:4]),
+                                                       end_year=int(context.backtest_start_time[:4]))
+        context.trade_date.index = context.trade_date['date']
+    today = context.now.strftime('%Y-%m-%d')
+    next_trade_date = context.trade_date.loc[today, 'next_trade_date']
+    pre_trade_date = context.trade_date.loc[today, 'pre_trade_date']
+    print('今天：{}, 上个交易日：{}， 下个交易日：{}'.format(today, pre_trade_date, next_trade_date))
+
+    # 判断当天是否为交易日
+    trade_date = context.trade_date['trade_date'].tolist()
+    if context.now.strftime('%Y-%m-%d') not in  trade_date:
+        print(context.now,"当前为非交易日")
+    else:
+        print(context.now, "当前为交易日")
+ 
+        复制成功
+    
+输出：
+今天：2023-08-21, 上个交易日：2023-08-18， 下个交易日：2023-08-22
+ 
+        复制成功
+    
+示例：
+get_trading_dates_by_year(exchange='SHSE', start_year=2020, end_year=2023)
+ 
+        复制成功
+    
+输出：
+            date next_trade_date pre_trade_date  trade_date
+0     2020-01-01      2020-01-02     2019-12-31
+1     2020-01-02      2020-01-03     2019-12-31  2020-01-02
+2     2020-01-03      2020-01-06     2020-01-02  2020-01-03
+3     2020-01-04      2020-01-06     2020-01-03
+4     2020-01-05      2020-01-06     2020-01-03
+         ...             ...            ...         ...
+1456  2023-12-27      2023-12-28     2023-12-26  2023-12-27
+1457  2023-12-28      2023-12-29     2023-12-27  2023-12-28
+1458  2023-12-29      2024-01-02     2023-12-28  2023-12-29
+1459  2023-12-30      2024-01-02     2023-12-29
+1460  2023-12-31      2024-01-02     2023-12-29
+
+[1461 rows x 4 columns]
+ 
+        复制成功
+    
+注意：
+1. exchange参数仅支持输入单个交易所代码，若代码错误，会报错
+2. 开始年份必须不晚于结束年份，否则返回空dataframe
+#get_previous_n_trading_dates - 查询指定日期的前n个交易日
+查询一个交易所指定日期的前n个交易日
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准, gm SDK 3.0.163 版本新增
+函数原型：
+get_previous_n_trading_dates(exchange, date, n=1)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+exchange	str	交易所代码	Y	无	只能填写一个交易所代码，交易所代码清单： SHSE:上海证券交易所，SZSE:深圳证券交易所，CFFEX:中金所，SHFE:上期所，DCE:大商所，CZCE:郑商所，INE:能源中心，GFEX:广期所
+date	str	指定日期	Y	无	指定的基准日期T，%Y-%m-%d 格式
+n	int	交易日个数	N	无	前n个交易日，默认为1，即前一天，取值范围[1，支持的最早交易日至当前交易日个数-1]
+返回值：
+交易日期字符串(%Y-%m-%d 格式)列表
+get_previous_n_trading_dates(exchange='SHSE', date='2023-10-10', n=10)
+ 
+        复制成功
+    
+输出：
+['2023-09-18', '2023-09-19', '2023-09-20', '2023-09-21', '2023-09-22', '2023-09-25', '2023-09-26', '2023-09-27', '2023-09-28', '2023-10-09']
+ 
+        复制成功
+    
+注意：
+1. exchange参数仅支持输入单个交易所代码。
+2. n必须为非零正整数，n=0时会报错，n超出最早支持的交易日时只会返回至最早交易日。
+3. 获取date前N个交易日，不包括date日期。
+#get_next_n_trading_dates - 查询指定日期的后n个交易日
+查询一个交易所指定日期的后n个交易日
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准, gm SDK 3.0.163 版本新增
+函数原型：
+get_next_n_trading_dates(exchange, date, n=1)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+exchange	str	交易所代码	Y	无	只能填写一个交易所代码，交易所代码清单： SHSE:上海证券交易所，SZSE:深圳证券交易所，CFFEX:中金所，SHFE:上期所，DCE:大商所，CZCE:郑商所，INE:能源中心，GFEX:广期所
+date	str	指定日期	Y	无	指定的基准日期T，%Y-%m-%d 格式
+n	int	交易日个数	N	无	前n个交易日，默认为1，即前一天，取值范围[1，支持的最早交易日至当前交易日个数-1]
+返回值：
+交易日期字符串(%Y-%m-%d 格式)列表
+get_next_n_trading_dates(exchange='SHSE', date='2023-09-27', n=10)
+ 
+        复制成功
+    
+输出：
+['2023-09-28', '2023-10-09', '2023-10-10', '2023-10-11', '2023-10-12', '2023-10-13', '2023-10-16', '2023-10-17', '2023-10-18', '2023-10-19']
+
+ 
+        复制成功
+    
+注意：
+1. exchange参数仅支持输入单个交易所代码。
+2. n必须为非零正整数，n=0时会报错，n超出最早支持的交易日时只会返回至最早交易日。
+3. 获取date前N个交易日，不包括date日期。
+#get_trading_session - 查询交易时段
+查询一个标的所属品种交易时间段.
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准
+函数原型：
+get_trading_session(symbols, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+symbols	str or list	标的代码	Y	无	输入标的代码，可输入多个. 采用 str 格式时，多个标的代码必须用英文逗号分割，如：'SHSE.600008,SZSE.000002' 采用 list 格式时，多个标的代码示例：['SHSE.600008', 'SZSE.000002'].
+df	bool	返回格式	N	False	是否返回 dataframe 格式， 默认False返回字典格式，返回list[dict]，列表每项的 dict 的 key 值见返回字段名
+返回值：
+字段名	类型	中文名称	说明
+symbol	str	标的代码	exchange.sec_id
+exchange	str	交易所代码	SHSE:上海证券交易所，SZSE:深圳证券交易所，CFFEX:中金所， SHFE:上期所，DCE:大商所，CZCE:郑商所，INE:上海国际能源交易中心，GFEX:广期所
+time_trading	list[dict]	连续竞价时段	HH:MM 格式，按时间顺序排列，如品种存在夜盘，夜盘时段排最前。 如[{'start': '09:30'，'end': '11:30'}， {'start': '13:00'， 'end': '14:57'}]，
+time_auction	list[dict]	集合竞价时段	HH:MM 格式，按时间顺序排列，如品种存在夜盘，夜盘时段排最前。 如[{’start': '09:15'， 'end': '09:25'}，{'start': '14:57'， 'end': '15:00'}]，
+示例：
+get_trading_session(symbols='SHFE.au2306', df=False)
+ 
+        复制成功
+    
+输出：
+[{'symbol': 'SHFE.AU2306', 'exchange': 'SHFE', 'time_trading': [{'start': '21:00', 'end': '2:30'}, {'start': '9:00', 'end': '10:15'}, {'start': '10:30', 'end': '11:30'}, {'start': '13:30', 'end': '15:00'}], 'time_auction': [{'start': '20:55', 'end': '20:59'}]}]
+ 
+        复制成功
+    
+注意：
+1. 如果输入不存在的合约代码 symbol，会报错提示"该合约[symbol]不存在"。
+#get_contract_expire_rest_days - 查询合约到期剩余天数
+查询期货合约、期权合约、可转债的到期剩余天数。
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准
+函数原型：
+get_contract_expire_rest_days(symbols, start_date=None, end_date=None, trade_flag = False, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+symbols	str or list	标的代码	Y	无	输入标的代码，可输入多个. 采用 str 格式时，多个标的代码必须用英文逗号分割，如：'CFFEX.IF2212,CFFEX.IC2212' 采用 list 格式时，多个标的代码示例：['CFFEX.IF2212', CFFEX.IC2212'].
+start_date	str or datetime	开始日期	N	None	%Y-%m-%d 格式，不早于合约上市日 默认None表示最新时间.
+end_date	str or datetime	结束日期	N	None	%Y-%m-%d 格式，不早于指定的开始日期，否则返回报错 默认None表示最新时间.
+trade_flag	bool	交易日	N	False	是否需要按交易日计算，默认False按自然日计算，则返回到期剩余自然日天数; 设置为True按交易日计算，则返回到期剩余交易日天数
+df	bool	返回格式	N	False	是否返回 dataframe 格式， 默认False返回字典格式，返回list[dict]，列表每项的 dict 的 key 值见返回字段名
+返回值：
+字段名	类型	中文名称	说明
+date	str	日期	[开始日期,结束日期]内的自然日期
+symbol	str	合约代码	exchange.sec_id
+days_to_expire	int	到期剩余天数	合约在指定交易时间至合约到期日的剩余天数. trade_flag=False，计算方法按自然日 trade_flag=True，计算方法按交易日
+示例：
+get_contract_expire_rest_days(symbols='CFFEX.IM2212', start_date='2022-12-12', end_date='2022-12-16', trade_flag = True, df=True)
+ 
+        复制成功
+    
+输出：
+         date        symbol  days_to_expire
+0  2022-12-12  CFFEX.IM2212               4
+1  2022-12-13  CFFEX.IM2212               3
+2  2022-12-14  CFFEX.IM2212               2
+3  2022-12-15  CFFEX.IM2212               1
+4  2022-12-16  CFFEX.IM2212               0
+ 
+        复制成功
+    
+注意：
+1. 参数start_date和end_date必须是 pd.to_dateime()可识别的字符串 str 格式，例'yyyy-mm-dd'， 'yyyy-mm-dd %H:%M:%S'，或者是 datetime 对象
+2. 在到期日当天，到期剩余天数为 0。正数表示距离到期日的剩余天数，0 表示到期日当天，负数表示距离到期日已经过去的天数。
+3. 如果输入不存在的合约代码symbol，会报错提示"该合约[symbol]不存在"。
+4. 如果输入的合约代码symbol在时间段内的某个日期未上市，在该日期的到期剩余天数返回 NaN。
+5. 用于剩余天数计算的到期日是最后交易日。
+stk_get_index_constituents - 查询指数成分股
+查询指定指数在最新交易日的成分股和权重(中证系列指数，因版权不提供成分股权重，weight=0)
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准
+函数原型：
+stk_get_index_constituents(index, trade_date=None)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+index	str	指数代码	Y	无	必填，只能输入一个指数，如：'SHSE.000905'
+trade_date	str	交易日期	N	None	交易日期，%Y-%m-%d 格式， 默认None为最新交易日
+返回值：dataframe
+字段名	类型	中文名称	说明
+index	str	指数代码	查询成分股的指数代码
+symbol	str	成分股代码	exchange.sec_id
+weight	float	成分股权重	成分股 symbol 对应的指数权重 (中证系列指数不支持该字段）
+trade_date	str	交易日期	最新交易日，%Y-%m-%d 格式
+market_value_total	float	总市值	单位：亿元
+market_value_circ	float	流通市值	单位：亿元
+示例：
+stk_get_index_constituents(index='SHSE.000300')
+ 
+        复制成功
+    
+输出：
+          index       symbol  weight  trade_date  market_value_total  market_value_circ
+0    SHSE.000300  SHSE.600519    0.05  2023-04-18            22083.96           22083.96
+1    SHSE.000300  SZSE.300750    0.03  2023-04-18             9989.35            8822.91
+2    SHSE.000300  SHSE.601318    0.03  2023-04-18             8887.85            5266.84
+3    SHSE.000300  SHSE.600036    0.02  2023-04-18             8998.44            7360.41
+4    SHSE.000300  SZSE.000858    0.02  2023-04-18             6921.68            6921.39
+5    SHSE.000300  SZSE.000333    0.01  2023-04-18             3972.72            3891.18
+6    SHSE.000300  SHSE.601166    0.01  2023-04-18             3616.80            3616.80
+7    SHSE.000300  SHSE.600900    0.01  2023-04-18             5030.92            4834.92
+8    SHSE.000300  SHSE.601012    0.01  2023-04-18             3033.36            3031.97
+9    SHSE.000300  SZSE.300059    0.01  2023-04-18             2859.02            2399.14
+10   SHSE.000300  SZSE.002594    0.01  2023-04-18             7248.75            2900.26...
+ 
+        复制成功
+    
+注意：
+1. 数据日频更新，在交易日约 20 点更新当日数据。如果当日数据尚未更新，调用时不指定trade_date会返回前一交易日的成分数据，调用时指定trade_date为当日会返回空 dataframe。
+2. trade_date输入非交易日，会返回空 dataframe。trade_date出入的日期格式错误，会报错。
+3. 指数列表参考
+#stk_get_fundamentals_balance_pt - 查询资产负债表截面数据（多标的）
+查询指定日期截面的股票所属上市公司的资产负债表数据（point-in-time）
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准
+函数原型：
+stk_get_fundamentals_balance_pt(symbols, rpt_type=None, data_type=None, date=None, fields, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+symbols	str or list	股票代码	Y	无	必填，可输入多个，使用时参考symbol 采用 str 格式时，多个标的代码必须用英文逗号分割，如：'SHSE.600008,SZSE.000002' 采用 list 格式时，多个标的代码示例：['SHSE.600008', 'SZSE.000002']
+fields	str	返回字段	Y	无	指定需要返回的财务字段， 如有多个字段，中间用英文逗号分隔
+rpt_type	int	报表类型	N	None	按报告期查询可指定以下报表类型：
+1-一季度报
+6-中报
+9-前三季报
+12-年报
+默认None为不限
+data_type	int	数据类型	N	None	在发布原始财务报告以后，上市公司可能会对数据进行修正。
+100-合并最初（未修正的合并原始）
+101-合并原始
+102-合并调整
+200-母公司最初（未修正的母公司原始）
+201-母公司原始
+202-母公司调整 默认None返回当期合并调整，如果没有调整返回合并原始，如果合并原始未修正返回合并最初
+date	str	查询日期	N	None	查询时间，时间类型为发布日期，%Y-%m-%d 格式， 默认None表示最新时间
+df	bool	返回格式	N	False	是否返回 dataframe 格式 ， 默认False返回 list[dict]
+返回值：
+字段名	类型	中文名称	说明
+symbol	str	股票代码	
+pub_date	str	发布日期	距查询日期最近的发布日期
+若数据类型选择合并原始(data_type=101)，则返回原始发布的发布日期
+若数据类型选择合并调整(data_type=102)，则返回调整后最新发布日期
+若数据类型选择母公司原始(data_type=201)，则返回母公司原始发布的发布日期
+若数据类型选择母公司调整(data_type=202)，则返回母公司调整后最新发布日期
+rpt_date	str	报告日期	报告截止日期，财报统计的最后一天，在指定时间段[开始时间,结束时间]内的报告截止日期
+rpt_type	int	报表类型	返回数据的报表类型：1-一季度报, 6-中报, 9-前三季报, 12-年报
+data_type	int	数据类型	返回数据的数据类型：100-合并最初（未修正的合并原始） 101-合并原始 102-合并调整 201-母公司原始 202-母公司调整 200-母公司最初（未修正的母公司原始）
+fields	list[float]	财务字段数据	指定查询 fields字段的数值. 支持的字段名请参考 资产负债表
+
+示例：
+stk_get_fundamentals_balance_pt(symbols='SHSE.600000, SZSE.000001', rpt_type=None, data_type=None, date='2022-10-01', fields='fix_ast', df=True)
+ 
+        复制成功
+    
+输出：
+        symbol    pub_date    rpt_date        fix_ast  data_type  rpt_type
+0  SZSE.000001  2022-10-25  2022-09-30 10975000000.00        102         9
+1  SHSE.600000  2022-10-29  2022-09-30 42563000000.00        102         9
+ 
+        复制成功
+    
+注意：
+1. 为避免未来数据问题，指定查询日期date后，返回发布日期小于查询日期下的最新报告日期数据。
+2. 如果fields参数的财务字段填写不正确，或填写空字段""，会报错提示“填写的 fields 不正确”。fields不能超过20个字段
+资产负债表
+字段名	类型	中文名称	量纲	说明
+流动资产(资产)				
+cash_bal_cb	float	现金及存放中央银行款项	元	银行
+dpst_ob	float	存放同业款项	元	银行
+mny_cptl	float	货币资金	元	
+cust_cred_dpst	float	客户信用资金存款	元	证券
+cust_dpst	float	客户资金存款	元	证券
+pm	float	贵金属	元	银行
+bal_clr	float	结算备付金	元	
+cust_rsv	float	客户备付金	元	证券
+ln_to_ob	float	拆出资金	元	
+fair_val_fin_ast	float	以公允价值计量且其变动计入当期损益的金融资产	元	
+ppay	float	预付款项	元	
+fin_out	float	融出资金	元	
+trd_fin_ast	float	交易性金融资产	元	
+deriv_fin_ast	float	衍生金融资产	元	
+note_acct_rcv	float	应收票据及应收账款	元	
+note_rcv	float	应收票据	元	
+acct_rcv	float	应收账款	元	
+acct_rcv_fin	float	应收款项融资	元	
+int_rcv	float	应收利息	元	
+dvd_rcv	float	应收股利	元	
+oth_rcv	float	其他应收款	元	
+in_prem_rcv	float	应收保费	元	
+rin_acct_rcv	float	应收分保账款	元	
+rin_rsv_rcv	float	应收分保合同准备金	元	保险
+rcv_un_prem_rin_rsv	float	应收分保未到期责任准备金	元	
+rcv_clm_rin_rsv	float	应收分保未决赔偿准备金	元	保险
+rcv_li_rin_rsv	float	应收分保寿险责任准备金	元	保险
+rcv_lt_hi_rin_rsv	float	应收分保长期健康险责任准备金	元	保险
+ph_plge_ln	float	保户质押贷款	元	保险
+ttl_oth_rcv	float	其他应收款合计	元	
+rfd_dpst	float	存出保证金	元	证券、保险
+term_dpst	float	定期存款	元	保险
+pur_resell_fin	float	买入返售金融资产	元	
+aval_sale_fin	float	可供出售金融资产	元	
+htm_inv	float	持有至到期投资	元	
+hold_for_sale	float	持有待售资产	元	
+acct_rcv_inv	float	应收款项类投资	元	保险
+invt	float	存货	元	
+contr_ast	float	合同资产	元	
+ncur_ast_one_y	float	一年内到期的非流动资产	元	
+oth_cur_ast	float	其他流动资产	元	
+cur_ast_oth_item	float	流动资产其他项目	元	
+ttl_cur_ast	float	流动资产合计	元	
+非流动资产(资产)				
+loan_adv	float	发放委托贷款及垫款	元	
+cred_inv	float	债权投资	元	
+oth_cred_inv	float	其他债权投资	元	
+lt_rcv	float	长期应收款	元	
+lt_eqy_inv	float	长期股权投资	元	
+oth_eqy_inv	float	其他权益工具投资	元	
+rfd_cap_guar_dpst	float	存出资本保证金	元	保险
+oth_ncur_fin_ast	float	其他非流动金融资产	元	
+amor_cos_fin_ast_ncur	float	以摊余成本计量的金融资产（非流动）	元	
+fair_val_oth_inc_ncur	float	以公允价值计量且其变动计入其他综合收益的金融资产（非流动）	元	
+inv_prop	float	投资性房地产	元	
+fix_ast	float	固定资产	元	
+const_prog	float	在建工程	元	
+const_matl	float	工程物资	元	
+fix_ast_dlpl	float	固定资产清理	元	
+cptl_bio_ast	float	生产性生物资产	元	
+oil_gas_ast	float	油气资产	元	
+rig_ast	float	使用权资产	元	
+intg_ast	float	无形资产	元	
+trd_seat_fee	float	交易席位费	元	证券
+dev_exp	float	开发支出	元	
+gw	float	商誉	元	
+lt_ppay_exp	float	长期待摊费用	元	
+dfr_tax_ast	float	递延所得税资产	元	
+oth_ncur_ast	float	其他非流动资产	元	
+ncur_ast_oth_item	float	非流动资产其他项目	元	
+ttl_ncur_ast	float	非流动资产合计	元	
+oth_ast	float	其他资产	元	银行、证券、保险
+ast_oth_item	float	资产其他项目	元	
+ind_acct_ast	float	独立账户资产	元	保险
+ttl_ast	float	资产总计	元	
+流动负债(负债)				
+brw_cb	float	向中央银行借款	元	
+dpst_ob_fin_inst	float	同业和其他金融机构存放款项	元	银行、保险
+ln_fm_ob	float	拆入资金	元	
+fair_val_fin_liab	float	以公允价值计量且其变动计入当期损益的金融负债	元	
+sht_ln	float	短期借款	元	
+adv_acct	float	预收款项	元	
+contr_liab	float	合同负债	元	
+trd_fin_liab	float	交易性金融负债	元	
+deriv_fin_liab	float	衍生金融负债	元	
+sell_repo_ast	float	卖出回购金融资产款	元	
+cust_bnk_dpst	float	吸收存款	元	银行、保险
+dpst_cb_note_pay	float	存款证及应付票据	元	银行
+dpst_cb	float	存款证	元	银行
+acct_rcv_adv	float	预收账款	元	保险
+in_prem_rcv_adv	float	预收保费	元	保险
+fee_pay	float	应付手续费及佣金	元	
+note_acct_pay	float	应付票据及应付账款	元	
+stlf_pay	float	应付短期融资款	元	
+note_pay	float	应付票据	元	
+acct_pay	float	应付账款	元	
+rin_acct_pay	float	应付分保账款	元	
+emp_comp_pay	float	应付职工薪酬	元	
+tax_pay	float	应交税费	元	
+int_pay	float	应付利息	元	
+dvd_pay	float	应付股利	元	
+ph_dvd_pay	float	应付保单红利	元	保险
+indem_pay	float	应付赔付款	元	保险
+oth_pay	float	其他应付款	元	
+ttl_oth_pay	float	其他应付款合计	元	
+ph_dpst_inv	float	保户储金及投资款	元	保险
+in_contr_rsv	float	保险合同准备金	元	保险
+un_prem_rsv	float	未到期责任准备金	元	保险
+clm_rin_rsv	float	未决赔款准备金	元	保险
+li_liab_rsv	float	寿险责任准备金	元	保险
+lt_hi_liab_rsv	float	长期健康险责任准备金	元	保险
+cust_bnk_dpst_fin	float	吸收存款及同业存放	元	
+inter_pay	float	内部应付款	元	
+agy_secu_trd	float	代理买卖证券款	元	
+agy_secu_uw	float	代理承销证券款	元	
+sht_bnd_pay	float	应付短期债券	元	
+est_cur_liab	float	预计流动负债	元	
+liab_hold_for_sale	float	持有待售负债	元	
+ncur_liab_one_y	float	一年内到期的非流动负债	元	
+oth_cur_liab	float	其他流动负债	元	
+cur_liab_oth_item	float	流动负债其他项目	元	
+ttl_cur_liab	float	流动负债合计	元	
+非流动负债（负债）				
+lt_ln	float	长期借款	元	
+lt_pay	float	长期应付款	元	
+leas_liab	float	租赁负债		
+dfr_inc	float	递延收益	元	
+dfr_tax_liab	float	递延所得税负债	元	
+bnd_pay	float	应付债券	元	
+bnd_pay_pbd	float	其中:永续债	元	
+bnd_pay_pfd	float	其中:优先股	元	
+oth_ncur_liab	float	其他非流动负债	元	
+spcl_pay	float	专项应付款	元	
+ncur_liab_oth_item	float	非流动负债其他项目	元	
+lt_emp_comp_pay	float	长期应付职工薪酬	元	
+est_liab	float	预计负债	元	
+oth_liab	float	其他负债	元	银行、证券、保险
+liab_oth_item	float	负债其他项目	元	银行、证券、保险
+ttl_ncur_liab	float	非流动负债合计	元	
+ind_acct_liab	float	独立账户负债	元	保险
+ttl_liab	float	负债合计	元	
+所有者权益(或股东权益)				
+paid_in_cptl	float	实收资本（或股本）	元	
+oth_eqy	float	其他权益工具	元	
+oth_eqy_pfd	float	其中:优先股	元	
+oth_eqy_pbd	float	其中:永续债	元	
+oth_eqy_oth	float	其中:其他权益工具	元	
+cptl_rsv	float	资本公积	元	
+treas_shr	float	库存股	元	
+oth_comp_inc	float	其他综合收益	元	
+spcl_rsv	float	专项储备	元	
+sur_rsv	float	盈余公积	元	
+rsv_ord_rsk	float	一般风险准备	元	
+trd_risk_rsv	float	交易风险准备	元	证券
+ret_prof	float	未分配利润	元	
+sugg_dvd	float	建议分派股利	元	银行
+eqy_pcom_oth_item	float	归属于母公司股东权益其他项目	元	
+ttl_eqy_pcom	float	归属于母公司股东权益合计	元	
+min_sheqy	float	少数股东权益	元	
+sheqy_oth_item	float	股东权益其他项目	元	
+ttl_eqy	float	股东权益合计	元	
+ttl_liab_eqy	float	负债和股东权益合计	元	
+#stk_get_fundamentals_cashflow_pt - 查询现金流量表截面数据（多标的）
+查询指定日期截面的股票所属上市公司的现金流量表数据（point-in-time）
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准
+函数原型：
+stk_get_fundamentals_cashflow_pt(symbols, rpt_type=None, data_type=None, date=None, fields, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+symbols	str or list	股票代码	Y	无	必填，可输入多个，使用时参考symbol 采用 str 格式时，多个标的代码必须用英文逗号分割，如：'SHSE.600008,SZSE.000002' 采用 list 格式时，多个标的代码示例：['SHSE.600008', 'SZSE.000002']
+fields	str	返回字段	Y	无	指定需要返回的财务字段， 如有多个字段，中间用英文逗号分隔
+rpt_type	int	报表类型	N	None	按报告期查询可指定以下报表类型：
+1-一季度报
+6-中报
+9-前三季报
+12-年报
+2-第二季度
+3-第三季度
+4-第四季度
+默认None为不限
+data_type	int	数据类型	N	None	在发布原始财务报告以后，上市公司可能会对数据进行修正。
+100-合并最初（未修正的合并原始）
+101-合并原始
+102-合并调整
+200-母公司最初（未修正的母公司原始）
+201-母公司原始
+202-母公司调整 默认None返回当期合并调整，如果没有调整返回合并原始，如果合并原始未修正返回合并最初
+date	str	查询日期	N	None	查询时间，时间类型为发布日期，%Y-%m-%d 格式， 默认None表示最新时间
+df	bool	返回格式	N	False	是否返回 dataframe 格式 ， 默认False返回 list[dict]
+返回值：
+字段名	类型	中文名称	说明
+symbol	str	股票代码	
+pub_date	str	发布日期	距查询日期最近的发布日期
+若数据类型选择合并原始(data_type=101)，则返回原始发布的发布日期
+若数据类型选择合并调整(data_type=102)，则返回调整后最新发布日期
+若数据类型选择母公司原始(data_type=201)，则返回母公司原始发布的发布日期
+若数据类型选择母公司调整(data_type=202)，则返回母公司调整后最新发布日期
+rpt_date	str	报告日期	报告截止日期，财报统计的最后一天，在指定时间段[开始时间,结束时间]内的报告截止日期
+rpt_type	int	报表类型	返回数据的报表类型：1-一季度报, 6-中报, 9-前三季报, 12-年报, 2-第二季度, 3-第三季度, 4-第四季度
+data_type	int	数据类型	返回数据的数据类型：100-合并最初（未修正的合并原始） 101-合并原始 102-合并调整 201-母公司原始 202-母公司调整 200-母公司最初（未修正的母公司原始）
+fields	list[float]	财务字段数据	指定查询 fields字段的数值. 支持的字段名请参考 现金流量表
+
+示例：
+stk_get_fundamentals_cashflow_pt(symbols='SHSE.600000, SZSE.000001', rpt_type=None, data_type=None, date='2022-10-01', fields='cash_pay_fee', df=True)
+ 
+        复制成功
+    
+输出：
+        symbol    pub_date    rpt_date  rpt_type  data_type  cash_pay_fee
+0  SZSE.000001  2022-10-25  2022-09-30         9        102           NaN
+1  SHSE.600000  2022-10-29  2022-09-30         9        102 7261000000.00
+ 
+        复制成功
+    
+注意：
+1. 为避免未来数据问题，指定查询日期date后，返回发布日期小于查询日期下的最新报告日期数据。
+2. 如果fields参数的财务字段填写不正确，或填写空字段""，会报错提示“填写的 fields 不正确”。fields不能超过20个字段
+现金流量表
+字段名	类型	中文名称	量纲	说明
+一、经营活动产生的现金流量				
+cash_rcv_sale	float	销售商品、提供劳务收到的现金	元	
+net_incr_cust_dpst_ob	float	客户存款和同业存放款项净增加额	元	
+net_incr_cust_dpst	float	客户存款净增加额	元	银行
+net_incr_dpst_ob	float	同业及其他金融机构存放款项净增加额	元	银行
+net_incr_brw_cb	float	向中央银行借款净增加额	元	
+net_incr_ln_fm_oth	float	向其他金融机构拆入资金净增加额	元	
+cash_rcv_orig_in	float	收到原保险合同保费取得的现金	元	
+net_cash_rcv_rin_biz	float	收到再保险业务现金净额	元	
+net_incr_ph_dpst_inv	float	保户储金及投资款净增加额	元	
+net_decrdpst_cb_ob	float	存放中央银行和同业款项及其他金融机构净减少额	元	银行、保险
+net_decr_cb	float	存放中央银行款项净减少额	元	银行
+net_decr_ob_fin_inst	float	存放同业及其他金融机构款项净减少额	元	银行
+net_cert_dpst	float	存款证净额	元	银行
+net_decr_trd_fin	float	交易性金融资产净减少额	元	银行
+net_incr_trd_liab	float	交易性金融负债净增加额	元	银行
+cash_rcv_int_fee	float	收取利息、手续费及佣金的现金	元	
+cash_rcv_int	float	其中：收取利息的现金	元	银行
+cash_rcv_fee	float	收取手续费及佣金的现金	元	银行
+net_incr_lnfm_sell_repo	float	拆入资金及卖出回购金融资产款净增加额	元	银行
+net_incr_ln_fm	float	拆入资金净增加额	元	
+net_incr_sell_repo	float	卖出回购金融资产款净增加额	元	银行 保险
+net_decr_lnto_pur_resell	float	拆出资金及买入返售金融资产净减少额	元	银行
+net_decr_ln_cptl	float	拆出资金净减少额	元	银行、保险
+net_dect_pur_resell	float	买入返售金融资产净减少额	元	银行、保险
+net_incr_repo	float	回购业务资金净增加额	元	
+net_decr_repo	float	回购业务资金净减少额	元	证券
+tax_rbt_rcv	float	收到的税费返还	元	
+net_cash_rcv_trd	float	收到交易性金融资产现金净额	元	保险
+cash_rcv_oth_oper	float	收到其他与经营活动有关的现金	元	
+net_cash_agy_secu_trd	float	代理买卖证券收到的现金净额	元	证券
+cash_rcv_pur_resell	float	买入返售金融资产收到的现金	元	证券、保险
+net_cash_agy_secu_uw	float	代理承销证券收到的现金净额	元	证券
+cash_rcv_dspl_debt	float	处置抵债资产收到的现金	元	银行
+canc_loan_rcv	float	收回的已于以前年度核销的贷款	元	银行
+cf_in_oper	float	经营活动现金流入小计	元	
+cash_pur_gds_svc	float	购买商品、接受劳务支付的现金	元	
+net_incr_ln_adv_cust	float	客户贷款及垫款净增加额	元	
+net_decr_brw_cb	float	向中央银行借款净减少额	元	银行
+net_incr_dpst_cb_ob	float	存放中央银行和同业款项净增加额	元	
+net_incr_cb	float	存放中央银行款项净增加额	元	银行
+net_incr_ob_fin_inst	float	存放同业及其他金融机构款项净增加额	元	银行
+net_decr_dpst_ob	float	同业及其他机构存放款减少净额	元	银行
+net_decr_issu_cert_dpst	float	已发行存款证净减少额	元	银行
+net_incr_lnto_pur_resell	float	拆出资金及买入返售金融资产净增加额	元	银行
+net_incr_ln_to	float	拆出资金净增加额	元	银行、保险
+net_incr_pur_resell	float	买入返售金融资产净增加额	元	银行、保险
+net_decr_lnfm_sell_repo	float	拆入资金及卖出回购金融资产款净减少额	元	银行
+net_decr_ln_fm	float	拆入资金净减少额	元	银行、证券
+net_decr_sell_repo	float	卖出回购金融资产净减少额	元	银行、保险
+net_incr_trd_fin	float	交易性金融资产净增加额	元	银行
+net_decr_trd_liab	float	交易性金融负债净减少额	元	银行
+cash_pay_indem_orig	float	支付原保险合同赔付款项的现金	元	
+net_cash_pay_rin_biz	float	支付再保险业务现金净额	元	保险
+cash_pay_int_fee	float	支付利息、手续费及佣金的现金	元	
+cash_pay_int	float	其中：支付利息的现金	元	银行
+cash_pay_fee	float	支付手续费及佣金的现金	元	银行
+ph_dvd_pay	float	支付保单红利的现金	元	
+net_decr_ph_dpst_inv	float	保户储金及投资款净减少额	元	保险
+cash_pay_emp	float	支付给职工以及为职工支付的现金		
+cash_pay_tax	float	支付的各项税费	元	
+net_cash_pay_trd	float	支付交易性金融资产现金净额	元	保险
+cash_pay_oth_oper	float	支付其他与经营活动有关的现金	元	
+net_incr_dspl_trd_fin	float	处置交易性金融资产净增加额	元	
+cash_pay_fin_leas	float	购买融资租赁资产支付的现金	元	银行
+net_decr_agy_secu_pay	float	代理买卖证券支付的现金净额（净减少额）	元	证券
+net_decr_dspl_trd_fin	float	处置交易性金融资产的净减少额	元	证券
+cf_out_oper	float	经营活动现金流出小计	元	
+net_cf_oper	float	经营活动产生的现金流量净额	元	
+二、投资活动产生的现金流量：				
+cash_rcv_sale_inv	float	收回投资收到的现金	元	
+inv_inc_rcv	float	取得投资收益收到的现金	元	
+cash_rcv_dvd_prof	float	分得股利或利润所收到的现金	元	银行
+cash_rcv_dspl_ast	float	处置固定资产、无形资产和其他长期资产收回的现金净额	元	
+cash_rcv_dspl_sub_oth	float	处置子公司及其他营业单位收到的现金净额	元	
+cash_rcv_oth_inv	float	收到其他与投资活动有关的现金	元	
+cf_in_inv	float	投资活动现金流入小计	元	
+pur_fix_intg_ast	float	购建固定资产、无形资产和其他长期资产支付的现金	元	
+cash_out_dspl_sub_oth	float	处置子公司及其他营业单位流出的现金净额	元	保险
+cash_pay_inv	float	投资支付的现金	元	
+net_incr_ph_plge_ln	float	保户质押贷款净增加额	元	保险
+add_cash_pled_dpst	float	增加质押和定期存款所支付的现金	元	
+net_incr_plge_ln	float	质押贷款净增加额	元	
+net_cash_get_sub	float	取得子公司及其他营业单位支付的现金净额	元	
+net_pay_pur_resell	float	支付买入返售金融资产现金净额	元	证券、保险
+cash_pay_oth_inv	float	支付其他与投资活动有关的现金	元	
+cf_out_inv	float	投资活动现金流出小计		
+net_cf_inv	float	投资活动产生的现金流量净额	元	
+三、筹资活动产生的现金流量：				
+cash_rcv_cptl	float	吸收投资收到的现金	元	
+sub_rcv_ms_inv	float	其中：子公司吸收少数股东投资收到的现金	元	
+brw_rcv	float	取得借款收到的现金	元	
+cash_rcv_bnd_iss	float	发行债券收到的现金	元	
+net_cash_rcv_sell_repo	float	收到卖出回购金融资产款现金净额	元	保险
+cash_rcv_oth_fin	float	收到其他与筹资活动有关的现金	元	
+issu_cert_dpst	float	发行存款证	元	银行
+cf_in_fin_oth	float	筹资活动现金流入其他项目	元	
+cf_in_fin	float	筹资活动现金流入小计	元	
+cash_rpay_brw	float	偿还债务支付的现金	元	
+cash_pay_bnd_int	float	偿付债券利息支付的现金	元	银行
+cash_pay_dvd_int	float	分配股利、利润或偿付利息支付的现金	元	
+sub_pay_dvd_prof	float	其中：子公司支付给少数股东的股利、利润	元	
+cash_pay_oth_fin	float	支付其他与筹资活动有关的现金	元	
+net_cash_pay_sell_repo	float	支付卖出回购金融资产款现金净额	元	保险
+cf_out_fin	float	筹资活动现金流出小计	元	
+net_cf_fin	float	筹资活动产生的现金流量净额	元	
+efct_er_chg_cash	float	四、汇率变动对现金及现金等价物的影响	元	
+net_incr_cash_eq	float	五、现金及现金等价物净增加额	元	
+cash_cash_eq_bgn	float	加：期初现金及现金等价物余额	元	
+cash_cash_eq_end	float	六、期末现金及现金等价物余额	元	
+补充资料 1．将净利润调节为经营活动现金流量：				
+net_prof	float	净利润	元	
+ast_impr	float	资产减值准备	元	
+accr_prvs_ln_impa	float	计提贷款减值准备	元	银行
+accr_prvs_oth_impa	float	计提其他资产减值准备	元	银行
+accr_prem_rsv	float	提取的保险责任准备金	元	保险
+accr_unearn_prem_rsv	float	提取的未到期的责任准备金	元	保险
+defr_fix_prop	float	固定资产和投资性房地产折旧	元	
+depr_oga_cba	float	其中:固定资产折旧、油气资产折耗、生产性生物资产折旧	元	
+amor_intg_ast_lt_exp	float	无形资产及长期待摊费用等摊销	元	银行、证券、保险
+amort_intg_ast	float	无形资产摊销	元	
+amort_lt_exp_ppay	float	长期待摊费用摊销	元	
+dspl_ast_loss	float	处置固定资产、无形资产和其他长期资产的损失	元	
+fair_val_chg_loss	float	固定资产报废损失	元	
+fv_chg_loss	float	公允价值变动损失	元	
+dfa	float	固定资产折旧	元	银行
+fin_exp	float	财务费用	元	
+inv_loss	float	投资损失	元	
+exchg_loss	float	汇兑损失	元	银行、证券、保险
+dest_incr	float	存款的增加	元	银行
+loan_decr	float	贷款的减少	元	银行
+cash_pay_bnd_int_iss	float	发行债券利息支出	元	银行
+dfr_tax	float	递延所得税	元	
+dfr_tax_ast_decr	float	其中:递延所得税资产减少	元	
+dfr_tax_liab_incr	float	递延所得税负债增加	元	
+invt_decr	float	存货的减少	元	
+decr_rcv_oper	float	经营性应收项目的减少	元	
+incr_pay_oper	float	经营性应付项目的增加	元	
+oth	float	其他	元	
+cash_end	float	现金的期末余额	元	
+cash_bgn	float	减：现金的期初余额	元	
+cash_eq_end	float	加:现金等价物的期末余额	元	
+cash_eq_bgn	float	减:现金等价物的期初余额	元	
+cred_impr_loss	float	信用减值损失	元	
+est_liab_add	float	预计负债的增加	元	
+dr_cnv_cptl	float	债务转为资本	元	
+cptl_bnd_expr_one_y	float	一年内到期的可转换公司债券	元	
+fin_ls_fix_ast	float	融资租入固定资产	元	
+amort_dfr_inc	float	递延收益摊销	元	
+depr_inv_prop	float	投资性房地产折旧	元	
+trd_fin_decr	float	交易性金融资产的减少	元	证券、保险
+im_net_cf_oper	float	间接法-经营活动产生的现金流量净额	元	
+im_net_incr_cash_eq	float	间接法-现金及现金等价物净增加额	元	
+#stk_get_fundamentals_income_pt - 查询利润表截面数据（多标的）
+查询指定日期截面的股票所属上市公司的利润表数据（point-in-time）
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准
+函数原型：
+stk_get_fundamentals_income_pt(symbols, rpt_type=None, data_type=None, date=None, fields, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+symbols	str or list	股票代码	Y	无	必填，可输入多个，使用时参考symbol 采用 str 格式时，多个标的代码必须用英文逗号分割，如：'SHSE.600008,SZSE.000002' 采用 list 格式时，多个标的代码示例：['SHSE.600008', 'SZSE.000002']
+fields	str	返回字段	Y	无	指定需要返回的财务字段， 如有多个字段，中间用英文逗号分隔
+rpt_type	int	报表类型	N	None	按报告期查询可指定以下报表类型：
+1-一季度报
+6-中报
+9-前三季报
+12-年报
+2-第二季度
+3-第三季度
+4-第四季度
+默认None为不限
+data_type	int	数据类型	N	None	在发布原始财务报告以后，上市公司可能会对数据进行修正。
+100-合并最初（未修正的合并原始）
+101-合并原始
+102-合并调整
+200-母公司最初（未修正的母公司原始）
+201-母公司原始
+202-母公司调整 默认None返回当期合并调整，如果没有调整返回合并原始，如果合并原始未修正返回合并最初
+date	str	查询日期	N	None	查询时间，时间类型为发布日期，%Y-%m-%d 格式， 默认None表示最新时间
+df	bool	返回格式	N	False	是否返回 dataframe 格式 ， 默认False返回 list[dict]
+返回值：
+字段名	类型	中文名称	说明
+symbol	str	股票代码	
+pub_date	str	发布日期	距查询日期最近的发布日期
+若数据类型选择合并原始(data_type=101)，则返回原始发布的发布日期
+若数据类型选择合并调整(data_type=102)，则返回调整后最新发布日期
+若数据类型选择母公司原始(data_type=201)，则返回母公司原始发布的发布日期
+若数据类型选择母公司调整(data_type=202)，则返回母公司调整后最新发布日期
+rpt_date	str	报告日期	报告截止日期，财报统计的最后一天，在指定时间段[开始时间,结束时间]内的报告截止日期
+rpt_type	int	报表类型	返回数据的报表类型：1-一季度报, 6-中报, 9-前三季报, 12-年报, 2-第二季度, 3-第三季度, 4-第四季度
+data_type	int	数据类型	返回数据的数据类型：100-合并最初（未修正的合并原始） 101-合并原始 102-合并调整 201-母公司原始 202-母公司调整 200-母公司最初（未修正的母公司原始）
+fields	list[float]	财务字段数据	指定查询 fields字段的数值. 支持的字段名请参考 利润表
+
+示例：
+stk_get_fundamentals_income_pt(symbols='SHSE.600000, SZSE.000001', rpt_type=None, data_type=None, date='2022-10-01', fields='inc_oper', df=True)
+ 
+        复制成功
+    
+输出：
+        symbol    pub_date    rpt_date  rpt_type  data_type        inc_oper
+0  SZSE.000001  2022-10-25  2022-09-30         9        102 138265000000.00
+1  SHSE.600000  2022-10-29  2022-09-30         9        102 143680000000.00
+ 
+        复制成功
+    
+注意：
+1. 为避免未来数据问题，指定查询日期date后，返回发布日期小于查询日期下的最新报告日期数据。
+2. 如果fields参数的财务字段填写不正确，或填写空字段""，会报错提示“填写的 fields 不正确”。fields不能超过20个字段
+利润表
+字段名	类型	中文名称	量纲	说明
+ttl_inc_oper	float	营业总收入	元	
+inc_oper	float	营业收入	元	
+net_inc_int	float	利息净收入	元	证券、银行、保险
+exp_int	float	利息支出	元	
+net_inc_fee_comm	float	手续费及佣金净收入	元	证券、银行
+inc_rin_prem	float	其中：分保费收入	元	保险
+net_inc_secu_agy	float	其中:代理买卖证券业务净收入	元	证券
+inc_fee_comm	float	手续费及佣金收入	元	
+in_prem_earn	float	已赚保费	元	保险
+inc_in_biz	float	其中:保险业务收入	元	保险
+rin_prem_cede	float	分出保费	元	保险
+unear_prem_rsv	float	提取未到期责任准备金	元	保险
+net_inc_uw	float	证券承销业务净收入	元	证券
+net_inc_cust_ast_mgmt	float	受托客户资产管理业务净收入	元	证券
+inc_fx	float	汇兑收益	元	
+inc_other_oper	float	其他业务收入	元	
+inc_oper_balance	float	营业收入平衡项目	元	
+ttl_inc_oper_other	float	营业总收入其他项目	元	
+ttl_cost_oper	float	营业总成本	元	
+cost_oper	float	营业成本	元	
+exp_oper	float	营业支出	元	证券、银行、保险
+biz_tax_sur	float	营业税金及附加	元	
+exp_sell	float	销售费用	元	
+exp_adm	float	管理费用	元	
+exp_rd	float	研发费用	元	
+exp_fin	float	财务费用	元	
+int_fee	float	其中:利息费用	元	
+inc_int	float	利息收入	元	
+exp_oper_adm	float	业务及管理费	元	证券、银行、保险
+exp_rin	float	减:摊回分保费用	元	保险
+rfd_prem	float	退保金	元	保险
+comp_pay	float	赔付支出	元	保险
+rin_clm_pay	float	减:摊回赔付支出	元	保险
+draw_insur_liab	float	提取保险责任准备金	元	保险
+amor_insur_liab	float	减:摊回保险责任准备金	元	保险
+exp_ph_dvd	float	保单红利支出	元	保险
+exp_fee_comm	float	手续费及佣金支出	元	
+other_oper_cost	float	其他业务成本	元	
+oper_exp_balance	float	营业支出平衡项目	元	证券、银行、保险
+exp_oper_other	float	营业支出其他项目	元	证券、银行、保险
+ttl_cost_oper_other	float	营业总成本其他项目	元	
+其他经营收益			元	
+inc_inv	float	投资收益	元	
+inv_inv_jv_p	float	对联营企业和合营企业的投资收益	元	
+inc_ast_dspl	float	资产处置收益	元	
+ast_impr_loss	float	资产减值损失(新)	元	
+cred_impr_loss	float	信用减值损失(新)	元	
+inc_fv_chg	float	公允价值变动收益	元	
+inc_other	float	其他收益	元	
+oper_prof_balance	float	营业利润平衡项目	元	
+oper_prof	float	营业利润	元	
+inc_noper	float	营业外收入	元	
+exp_noper	float	营业外支出	元	
+ttl_prof_balance	float	利润总额平衡项目	元	
+oper_prof_other	float	营业利润其他项目	元	
+ttl_prof	float	利润总额	元	
+inc_tax	float	所得税费用	元	
+net_prof	float	净利润	元	
+oper_net_prof	float	持续经营净利润	元	
+net_prof_pcom	float	归属于母公司股东的净利润	元	
+min_int_inc	float	少数股东损益	元	
+end_net_prof	float	终止经营净利润	元	
+net_prof_other	float	净利润其他项目	元	
+eps_base	float	基本每股收益	元	
+eps_dil	float	稀释每股收益	元	
+other_comp_inc	float	其他综合收益	元	
+other_comp_inc_pcom	float	归属于母公司股东的其他综合收益	元	
+other_comp_inc_min	float	归属于少数股东的其他综合收益	元	
+ttl_comp_inc	float	综合收益总额	元	
+ttl_comp_inc_pcom	float	归属于母公司所有者的综合收益总额	元	
+ttl_comp_inc_min	float	归属于少数股东的综合收益总额	元	
+prof_pre_merge	float	被合并方在合并前实现利润	元	
+net_rsv_in_contr	float	提取保险合同准备金净额	元	
+net_pay_comp	float	赔付支出净额	元	
+net_loss_ncur_ast	float	非流动资产处置净损失	元	
+amod_fin_asst_end	float	以摊余成本计量的金融资产终止确认收益	元	
+cash_flow_hedging_pl	float	现金流量套期损益的有效部分	元	
+cur_trans_diff	float	外币财务报表折算差额	元	
+gain_ncur_ast	float	非流动资产处置利得	元	
+afs_fv_chg_pl	float	可供出售金融资产公允价值变动损益	元	
+oth_eqy_inv_fv_chg	float	其他权益工具投资公允价值变动	元	
+oth_debt_inv_fv_chg	float	其他债权投资公允价值变动	元	
+oth_debt_inv_cred_impr	float	其他债权投资信用减值准备	元	
+#stk_get_finance_prime_pt - 查询财务主要指标截面数据（多标的）
+查询指定日期截面上，股票所属上市公司的财务主要指标数据（point-in-time）
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准
+函数原型：
+stk_get_finance_prime_pt(symbols, fields, rpt_type=None, data_type=None, date=None, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+symbols	str or list	股票代码	Y	无	必填，可输入多个，使用时参考symbol 采用 str 格式时，多个标的代码必须用英文逗号分割，如：'SHSE.600008,SZSE.000002' 采用 list 格式时，多个标的代码示例：['SHSE.600008', 'SZSE.000002']
+fields	str	返回字段	Y	无	指定需要返回的财务主要指标， 如有多个字段，中间用英文逗号分隔
+rpt_type	int	报表类型	N	None	按报告期查询可指定以下报表类型：
+1-一季度报
+6-中报
+9-前三季报
+12-年报
+默认None为不限
+data_type	int	数据类型	N	None	在发布原始财务报告以后，上市公司可能会对数据进行修正。
+100-合并最初（未修正的合并原始）
+101-合并原始
+102-合并调整
+200-母公司最初（未修正的母公司原始）
+201-母公司原始
+202-母公司调整 默认None返回当期合并调整，如果没有调整返回合并原始，如果合并原始未修正返回合并最初
+date	str	查询日期	N	None	查询时间，时间类型为发布日期，%Y-%m-%d 格式， 默认None表示最新时间
+df	bool	返回格式	N	False	是否返回 dataframe 格式 ， 默认False返回 list[dict]
+返回值：
+字段名	类型	中文名称	说明
+symbol	str	股票代码	
+pub_date	str	发布日期	距查询日期最近的发布日期
+若数据类型选择合并原始(data_type=101)，则返回原始发布的发布日期
+若数据类型选择合并调整(data_type=102)，则返回调整后最新发布日期
+若数据类型选择母公司原始(data_type=201)，则返回母公司原始发布的发布日期
+若数据类型选择母公司调整(data_type=202)，则返回母公司调整后最新发布日期
+rpt_date	str	报告日期	报告截止日期，财报统计的最后一天，在指定时间段[开始时间,结束时间]内的报告截止日期
+rpt_type	int	报表类型	返回数据的报表类型：1-一季度报, 6-中报, 9-前三季报, 12-年报
+data_type	int	数据类型	返回数据的数据类型：100-合并最初（未修正的合并原始） 101-合并原始 102-合并调整 201-母公司原始 202-母公司调整 200-母公司最初（未修正的母公司原始）
+fields	list[float]	财务字段数据	指定查询 fields字段的数值. 支持的字段名请参考 财务主要指标
+
+示例：
+stk_get_finance_prime_pt(symbols=['SZSE.000001', 'SZSE.300002'], fields='eps_basic,eps_dil', rpt_type=None, data_type=None, date='2023-06-19', df=True)
+ 
+        复制成功
+    
+输出：
+        symbol    pub_date    rpt_date  rpt_type  data_type  eps_dil  eps_basic
+0  SZSE.000001  2023-04-25  2023-03-31         1        101   0.6500     0.6500
+1  SZSE.300002  2023-04-27  2023-03-31         1        101   0.0914     0.0914
+ 
+        复制成功
+    
+注意：
+1. 为避免未来数据问题，指定查询日期date后，返回发布日期小于查询日期下的最新报告日期数据。
+2. 如果fields参数的财务字段填写不正确，或填写空字段""，会报错提示“填写的 fields 不正确”。fields不能超过20个字段
+财务主要指标
+字段名	类型	中文名称	量纲	说明
+eps_basic	float	基本每股收益	元	
+eps_dil	float	稀释每股收益	元	
+eps_basic_cut	float	扣除非经常性损益后的基本每股收益	元	
+eps_dil_cut	float	扣除非经常性损益后的稀释每股收益	元	
+net_cf_oper_ps	float	每股经营活动产生的现金流量净额	元	
+bps_pcom_ps	float	归属于母公司股东的每股净资产	元	
+ttl_ast	float	总资产	元	
+ttl_liab	float	总负债	元	
+share_cptl	float	股本	股	
+ttl_inc_oper	float	营业总收入	元	
+inc_oper	float	营业收入	元	
+oper_prof	float	营业利润	元	
+ttl_prof	float	利润总额	元	
+ttl_eqy_pcom	float	归属于母公司股东的所有者权益	元	
+net_prof_pcom	float	归属于母公司股东的净利润	元	
+net_prof_pcom_cut	float	扣除非经常性损益后归属于母公司股东的净利润	元	
+roe	float	全面摊薄净资产收益率	%	
+roe_weight_avg	float	加权平均净资产收益率	%	
+roe_cut	float	扣除非经常性损益后的全面摊薄净资产收益率	%	
+roe_weight_avg_cut	float	扣除非经常性损益后的加权平均净资产收益率	%	
+net_cf_oper	float	经营活动产生的现金流量净额	元	
+eps_yoy	float	每股收益同比比例	%	
+inc_oper_yoy	float	营业收入同比比例	%	
+ttl_inc_oper_yoy	float	营业总收入同比比例	%	
+net_prof_pcom_yoy	float	归母净利润同比比例	%	
+bps_sh	float	归属于普通股东的每股净资产	元	
+net_asset	float	归属于普通股东的净资产	元	
+net_prof	float	归属于普通股东的净利润	元	
+net_prof_cut	float	扣除非经常性损益后归属于普通股股东的净利润	元	
+#stk_get_finance_deriv_pt - 查询财务衍生指标截面数据（多标的）
+查询指定日期截面上，股票所属上市公司的财务衍生指标数据（point-in-time）
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准
+函数原型：
+stk_get_finance_deriv_pt(symbols, fields, rpt_type=None, data_type=None, date=None, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+symbols	str or list	股票代码	Y	无	必填，可输入多个，使用时参考symbol 采用 str 格式时，多个标的代码必须用英文逗号分割，如：'SHSE.600008,SZSE.000002' 采用 list 格式时，多个标的代码示例：['SHSE.600008', 'SZSE.000002']
+fields	str	返回字段	Y	无	指定需要返回的财务衍生指标， 如有多个字段，中间用英文逗号分隔
+rpt_type	int	报表类型	N	None	按报告期查询可指定以下报表类型：
+1-一季度报
+6-中报
+9-前三季报
+12-年报
+默认None为不限
+data_type	int	数据类型	N	None	在发布原始财务报告以后，上市公司可能会对数据进行修正。 101-合并原始
+102-合并调整 201-母公司原始
+202-母公司调整 默认None返回当期合并调整，如果没有调整返回合并原始
+date	str	查询日期	N	None	查询时间，时间类型为发布日期，%Y-%m-%d 格式， 默认None表示最新时间
+df	bool	返回格式	N	False	是否返回 dataframe 格式 ， 默认False返回 list[dict]
+返回值：
+字段名	类型	中文名称	说明
+symbol	str	股票代码	
+pub_date	str	发布日期	距查询日期最近的发布日期
+若数据类型选择合并原始(data_type=101)，则返回原始发布的发布日期
+若数据类型选择合并调整(data_type=102)，则返回调整后最新发布日期
+若数据类型选择母公司原始(data_type=201)，则返回母公司原始发布的发布日期
+若数据类型选择母公司调整(data_type=202)，则返回母公司调整后最新发布日期
+rpt_date	str	报告日期	报告截止日期，财报统计的最后一天，在指定时间段[开始时间,结束时间]内的报告截止日期
+rpt_type	int	报表类型	返回数据的报表类型：1-一季度报, 6-中报, 9-前三季报, 12-年报
+data_type	int	数据类型	返回数据的数据类型：101-合并原始, 102-合并调整, 201-母公司原始, 202-母公司调整
+fields	list[float]	财务字段数据	指定查询 fields字段的数值. 支持的字段名请参考 财务衍生指标指标
+
+示例：
+stk_get_finance_deriv_pt(symbols=['SZSE.000001', 'SZSE.300002'], fields='eps_basic,eps_dil2',
+                                   rpt_type=None, data_type=None, date='2023-06-19', df=True)
+ 
+        复制成功
+    
+输出：
+        symbol    pub_date    rpt_date  ...  data_type  eps_basic  eps_dil2
+0  SZSE.000001  2023-04-25  2023-03-31  ...        102     0.6500    0.6500
+1  SZSE.300002  2023-04-27  2023-03-31  ...        102     0.0914    0.0914
+ 
+        复制成功
+    
+注意：
+1. 为避免未来数据问题，指定查询日期date后，返回发布日期小于查询日期下的最新报告日期数据。
+2. 如果fields参数的财务字段填写不正确，或填写空字段""，会报错提示“填写的 fields 不正确”。fields不能超过20个字段
+财务衍生指标指标
+字段名	类型	中文名称	量纲	说明
+eps_basic	float	每股收益EPS(基本)	元	
+eps_dil2	float	每股收益EPS(稀释)	元	
+eps_dil	float	每股收益EPS(期末股本摊薄)	元	
+eps_basic_cut	float	每股收益EPS(扣除/基本)	元	
+eps_dil2_cut	float	每股收益EPS(扣除/稀释)	元	
+eps_dil_cut	float	每股收益EPS(扣除/期末股本摊薄)	元	
+bps	float	每股净资产BPS	元	
+net_cf_oper_ps	float	每股经营活动产生的现金流量净额	元	
+ttl_inc_oper_ps	float	每股营业总收入	元	
+inc_oper_ps	float	每股营业收入	元	
+ebit_ps	float	每股息税前利润	元	
+cptl_rsv_ps	float	每股资本公积	元	
+sur_rsv_ps	float	每股盈余公积	元	
+retain_prof_ps	float	每股未分配利润	元	
+retain_inc_ps	float	每股留存收益	元	
+net_cf_ps	float	每股现金流量净额	元	
+fcff_ps	float	每股企业自由现金流量	元	
+fcfe_ps	float	每股股东自由现金流量	元	
+ebitda_ps	float	每股EBITDA	元	
+roe	float	净资产收益率ROE(摊薄)	%	
+roe_weight	float	净资产收益率ROE(加权)	%	
+roe_avg	float	净资产收益率ROE(平均)	%	
+roe_cut	float	净资产收益率ROE(扣除/摊薄)	%	
+roe_weight_cut	float	净资产收益率ROE(扣除/加权)	%	
+ocf_toi	float	经营性现金净流量/营业总收入		
+eps_dil_yoy	float	稀释每股收益同比增长率	%	
+net_cf_oper_ps_yoy	float	每股经营活动中产生的现金流量净额同比增长率	%	
+ttl_inc_oper_yoy	float	营业总收入同比增长率	%	
+inc_oper_yoy	float	营业收入同比增长率	%	
+oper_prof_yoy	float	营业利润同比增长率	%	
+ttl_prof_yoy	float	利润总额同比增长率	%	
+net_prof_pcom_yoy	float	归属母公司股东的净利润同比增长率	%	
+net_prof_pcom_cut_yoy	float	归属母公司股东的净利润同比增长率(扣除非经常性损益)	%	
+net_cf_oper_yoy	float	经营活动产生的现金流量净额同比增长率	%	
+roe_yoy	float	净资产收益率同比增长率(摊薄)	%	
+net_asset_yoy	float	净资产同比增长率	%	
+ttl_liab_yoy	float	总负债同比增长率	%	
+ttl_asset_yoy	float	总资产同比增长率	%	
+net_cash_flow_yoy	float	现金净流量同比增长率	%	
+bps_gr_begin_year	float	每股净资产相对年初增长率	%	
+ttl_asset_gr_begin_year	float	资产总计相对年初增长率	%	
+ttl_eqy_pcom_gr_begin_year	float	归属母公司的股东权益相对年初增长率	%	
+net_debt_eqy_ev	float	净债务/股权价值	%	
+int_debt_eqy_ev	float	带息债务/股权价值		
+eps_bas_yoy	float	基本每股收益同比增长率	%	
+ebit	float	EBIT(正推法)	元	
+ebitda	float	EBITDA(正推法)	元	
+ebit_inverse	float	EBIT(反推法)	元	
+ebitda_inverse	float	EBITDA(反推法)	元	
+nr_prof_loss	float	非经常性损益	元	
+net_prof_cut	float	扣除非经常性损益后的净利润	元	
+gross_prof	float	毛利润	元	
+oper_net_inc	float	经营活动净收益	元	
+val_chg_net_inc	float	价值变动净收益	元	
+exp_rd	float	研发费用	元	
+ttl_inv_cptl	float	全部投入资本	元	
+work_cptl	float	营运资本	元	
+net_work_cptl	float	净营运资本	元	
+tg_asset	float	有形资产	元	
+retain_inc	float	留存收益	元	
+int_debt	float	带息债务	元	
+net_debt	float	净债务	元	
+curr_liab_non_int	float	无息流动负债	元	
+ncur_liab_non_int	float	无息非流动负债	元	
+fcff	float	企业自由现金流量FCFF	元	
+fcfe	float	股权自由现金流量FCFE	元	
+cur_depr_amort	float	当期计提折旧与摊销	元	
+eqy_mult_dupont	float	权益乘数(杜邦分析)		
+net_prof_pcom_np	float	归属母公司股东的净利润/净利润	%	
+net_prof_tp	float	净利润/利润总额	%	
+ttl_prof_ebit	float	利润总额/息税前利润	%	
+roe_cut_avg	float	净资产收益率ROE(扣除/平均)	%	
+roe_add	float	净资产收益率ROE(增发条件)	%	
+roe_ann	float	净资产收益率ROE(年化)	%	
+roa	float	总资产报酬率ROA	%	
+roa_ann	float	总资产报酬率ROA(年化)	%	
+jroa	float	总资产净利率	%	
+jroa_ann	float	总资产净利率(年化)	%	
+roic	float	投入资本回报率ROIC	%	
+sale_npm	float	销售净利率	%	
+sale_gpm	float	销售毛利率	%	
+sale_cost_rate	float	销售成本率	%	
+sale_exp_rate	float	销售期间费用率	%	
+net_prof_toi	float	净利润/营业总收入	%	
+oper_prof_toi	float	营业利润/营业总收入	%	
+ebit_toi	float	息税前利润/营业总收入	%	
+ttl_cost_oper_toi	float	营业总成本/营业总收入	%	
+exp_oper_toi	float	营业费用/营业总收入	%	
+exp_admin_toi	float	管理费用/营业总收入	%	
+exp_fin_toi	float	财务费用/营业总收入	%	
+ast_impr_loss_toi	float	资产减值损失/营业总收入	%	
+ebitda_toi	float	EBITDA/营业总收入	%	
+oper_net_inc_tp	float	经营活动净收益/利润总额	%	
+val_chg_net_inc_tp	float	价值变动净收益/利润总额	%	
+net_exp_noper_tp	float	营业外支出净额/利润总额		
+inc_tax_tp	float	所得税/利润总额	%	
+net_prof_cut_np	float	扣除非经常性损益的净利润/净利润	%	
+eqy_mult	float	权益乘数		
+curr_ast_ta	float	流动资产/总资产	%	
+ncurr_ast_ta	float	非流动资产/总资产	%	
+tg_ast_ta	float	有形资产/总资产	%	
+ttl_eqy_pcom_tic	float	归属母公司股东的权益/全部投入资本	%	
+int_debt_tic	float	带息负债/全部投入资本	%	
+curr_liab_tl	float	流动负债/负债合计	%	
+ncurr_liab_tl	float	非流动负债/负债合计	%	
+ast_liab_rate	float	资产负债率	%	
+quick_rate	float	速动比率		
+curr_rate	float	流动比率		
+cons_quick_rate	float	保守速动比率		
+liab_eqy_rate	float	产权比率		
+ttl_eqy_pcom_tl	float	归属母公司股东的权益/负债合计		
+ttl_eqy_pcom_debt	float	归属母公司股东的权益/带息债务		
+tg_ast_tl	float	有形资产/负债合计		
+tg_ast_int_debt	float	有形资产/带息债务		
+tg_ast_net_debt	float	有形资产/净债务		
+ebitda_tl	float	息税折旧摊销前利润/负债合计		
+net_cf_oper_tl	float	经营活动产生的现金流量净额/负债合计		
+net_cf_oper_int_debt	float	经营活动产生的现金流量净额/带息债务		
+net_cf_oper_curr_liab	float	经营活动产生的现金流量净额/流动负债		
+net_cf_oper_net_liab	float	经营活动产生的现金流量净额/净债务		
+ebit_int_cover	float	已获利息倍数		
+long_liab_work_cptl	float	长期债务与营运资金比率		
+ebitda_int_debt	float	EBITDA/带息债务	%	
+oper_cycle	float	营业周期	天	
+inv_turnover_days	float	存货周转天数	天	
+acct_rcv_turnover_days	float	应收账款周转天数(含应收票据)	天	
+inv_turnover_rate	float	存货周转率	次	
+acct_rcv_turnover_rate	float	应收账款周转率(含应收票据)	次	
+curr_ast_turnover_rate	float	流动资产周转率	次	
+fix_ast_turnover_rate	float	固定资产周转率	次	
+ttl_ast_turnover_rate	float	总资产周转率	次	
+cash_rcv_sale_oi	float	销售商品提供劳务收到的现金/营业收入	%	
+net_cf_oper_oi	float	经营活动产生的现金流量净额/营业收入	%	
+net_cf_oper_oni	float	经营活动产生的现金流量净额/经营活动净收益		
+cptl_exp_da	float	资本支出/折旧摊销	%	
+cash_rate	float	现金比率		
+acct_pay_turnover_days	float	应付账款周转天数(含应付票据)	天	
+acct_pay_turnover_rate	float	应付账款周转率(含应付票据)	次	
+net_oper_cycle	float	净营业周期	天	
+ttl_cost_oper_yoy	float	营业总成本同比增长率	%	
+net_prof_yoy	float	净利润同比增长率	%	
+net_cf_oper_np	float	经营活动产生的现金流量净额/净利润	%	
+#stk_get_daily_valuation_pt - 查询估值指标单日截面数据（多标的）
+查询指定日期截面上，股票的单日估值指标（point-in-time）
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准
+函数原型：
+stk_get_daily_valuation_pt(symbols, fields, trade_date=None, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+symbols	str or list	股票代码	Y	无	必填，可输入多个，使用时参考symbol 采用 str 格式时，多个标的代码必须用英文逗号分割，如：'SHSE.600008,SZSE.000002' 采用 list 格式时，多个标的代码示例：['SHSE.600008', 'SZSE.000002']
+fields	str	返回字段	Y	无	指定需要返回的交易衍生指标， 如有多个字段，中间用英文逗号分隔
+trade_date	str	查询日期	N	None	查询时间，时间类型为交易日期，%Y-%m-%d 格式， 默认None表示最新时间
+df	bool	返回格式	N	False	是否返回 dataframe 格式 ， 默认False返回 list[dict]
+返回值：
+字段名	类型	中文名称	说明
+symbol	str	股票代码	
+trade_date	str	交易日期	
+fields	list[float]	指标字段数据	指定查询 fields字段的数值. 支持的字段名请参考 估值指标
+
+示例：
+stk_get_daily_valuation_pt(symbols=['SZSE.000001', 'SZSE.300002'], fields='pe_ttm,pe_lyr,pe_mrq',
+                               trade_date=None, df=True)
+ 
+        复制成功
+    
+输出：
+        symbol  trade_date   pe_ttm   pe_mrq   pe_lyr
+0  SZSE.000001  2023-06-26   4.5900   3.7145   4.7666
+1  SZSE.300002  2023-06-26  39.3144  36.2480  47.6621
+ 
+        复制成功
+    
+注意：
+1. 如果fields参数的财务字段填写不正确，或填写空字段""，会报错提示“填写的 fields 不正确”。fields不能超过20个字段
+估值指标
+字段名	类型	中文名称	量纲	说明
+pe_ttm	float	市盈率(TTM)	倍	
+pe_lyr	float	市盈率(最新年报LYR)	倍	
+pe_mrq	float	市盈率(最新报告期MRQ)	倍	
+pe_1q	float	市盈率(当年一季×4)	倍	
+pe_2q	float	市盈率(当年中报×2)	倍	
+pe_3q	float	市盈率(当年三季×4/3)	倍	
+pe_ttm_cut	float	市盈率(TTM) 扣除非经常性损益	倍	
+pe_lyr_cut	float	市盈率(最新年报LYR) 扣除非经常性损益	倍	
+pe_mrq_cut	float	市盈率(最新报告期MRQ) 扣除非经常性损益	倍	
+pe_1q_cut	float	市盈率(当年一季×4) 扣除非经常性损益	倍	
+pe_2q_cut	float	市盈率(当年中报×2) 扣除非经常性损益	倍	
+pe_3q_cut	float	市盈率(当年三季×4/3) 扣除非经常性损益	倍	
+pb_lyr	float	市净率(最新年报LYR)	倍	
+pb_mrq	float	市净率(最新报告期MRQ)	倍	
+pb_lyr_1	float	市净率(剔除其他权益工具，最新年报LYR)	倍	
+pb_mrq_1	float	市净率(剔除其他权益工具，最新报告期MRQ)	倍	
+pcf_ttm_oper	float	市现率(经营现金流,TTM)	倍	
+pcf_ttm_ncf	float	市现率(现金净流量,TTM)	倍	
+pcf_lyr_oper	float	市现率(经营现金流,最新年报LYR)	倍	
+pcf_lyr_ncf	float	市现率(现金净流量,最新年报LYR)	倍	
+ps_ttm	float	市销率(TTM)	倍	
+ps_lyr	float	市销率(最新年报LYR)	倍	
+ps_mrq	float	市销率(最新报告期MRQ)	倍	
+ps_1q	float	市销率(当年一季×4)	倍	
+ps_2q	float	市销率(当年中报×2)	倍	
+ps_3q	float	市销率(当年三季×4/3)	倍	
+peg_lyr	float	历史PEG值(当年年报增长率)		
+peg_mrq	float	历史PEG值(最新报告期增长率)		
+peg_1q	float	历史PEG值(当年1季*4较上年年报增长率)		
+peg_2q	float	历史PEG值(当年中报*2较上年年报增长率)		
+peg_3q	float	历史PEG值(当年3季*4/3较上年年报增长率)		
+peg_np_cgr	float	历史PEG值(PE_TTM较净利润3年复合增长率)		
+peg_npp_cgr	float	历史PEG值(PE_TTM较净利润3年复合增长率)		
+dy_ttm	float	股息率(滚动 12 月TTM)	%	
+dy_lfy	float	股息率(上一财年LFY)	%	
+#stk_get_daily_mktvalue_pt - 查询市值指标单日截面数据（多标的）
+查询指定日期截面上，股票的单日市值截面数据（point-in-time）
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准
+函数原型：
+stk_get_daily_mktvalue_pt(symbols, fields, trade_date=None, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+symbols	str or list	股票代码	Y	无	必填，可输入多个，使用时参考symbol 采用 str 格式时，多个标的代码必须用英文逗号分割，如：'SHSE.600008,SZSE.000002' 采用 list 格式时，多个标的代码示例：['SHSE.600008', 'SZSE.000002']
+fields	str	返回字段	Y	无	指定需要返回的交易衍生指标， 如有多个字段，中间用英文逗号分隔
+trade_date	str	查询日期	N	None	查询时间，时间类型为交易日期，%Y-%m-%d 格式， 默认None表示最新时间
+df	bool	返回格式	N	False	是否返回 dataframe 格式 ， 默认False返回 list[dict]
+返回值：
+字段名	类型	中文名称	说明
+symbol	str	股票代码	
+trade_date	str	交易日期	
+fields	list[float]	指标字段数据	指定查询 fields字段的数值. 支持的字段名请参考 市值指标
+
+示例：
+stk_get_daily_mktvalue_pt(symbols=['SZSE.000001', 'SZSE.300002'], fields='tot_mv,tot_mv_csrc,a_mv',
+                               trade_date=None, df=True)
+ 
+        复制成功
+    
+输出：
+        symbol  trade_date        a_mv      tot_mv  tot_mv_csrc
+0  SZSE.000001  2023-06-26  2.1696e+11  2.1696e+11   2.1696e+11
+1  SZSE.300002  2023-06-26  2.5828e+10  2.5828e+10   2.5828e+10
+ 
+        复制成功
+    
+注意：
+1. 如果fields参数的财务字段填写不正确，或填写空字段""，会报错提示“填写的 fields 不正确”。fields不能超过20个字段
+市值指标
+字段名	类型	中文名称	量纲	说明
+tot_mv	float	总市值	元	
+tot_mv_csrc	float	总市值(证监会算法)	元	
+a_mv	float	A股流通市值(含限售股)	元	
+a_mv_ex_ltd	float	A股流通市值(不含限售股)	元	
+b_mv	float	B股流通市值(含限售股，折人民币)	元	
+b_mv_ex_ltd	float	B股流通市值(不含限售股，折人民币)	元	
+ev	float	企业价值(含货币资金)(EV1)	元	
+ev_ex_curr	float	企业价值(剔除货币资金)(EV2)	元	
+ev_ebitda	float	企业倍数	倍	
+equity_value	float	股权价值	元	
+#stk_get_daily_basic_pt - 查询股本等基础指标单日截面数据（多标的）
+查询指定日期截面上，股票的单日基础指标截面数据（point-in-time）
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准
+函数原型：
+stk_get_daily_basic_pt(symbols, fields, trade_date=None, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+symbols	str or list	股票代码	Y	无	必填，可输入多个，使用时参考symbol 采用 str 格式时，多个标的代码必须用英文逗号分割，如：'SHSE.600008,SZSE.000002' 采用 list 格式时，多个标的代码示例：['SHSE.600008', 'SZSE.000002']
+fields	str	返回字段	Y	无	指定需要返回的交易衍生指标， 如有多个字段，中间用英文逗号分隔
+trade_date	str	查询日期	N	None	查询时间，时间类型为交易日期，%Y-%m-%d 格式， 默认None表示最新时间
+df	bool	返回格式	N	False	是否返回 dataframe 格式 ， 默认False返回 list[dict]
+返回值：
+字段名	类型	中文名称	说明
+symbol	str	股票代码	
+trade_date	str	交易日期	
+fields	list[float]	指标字段数据	指定查询 fields字段的数值. 支持的字段名请参考 基础指标
+
+示例：
+stk_get_daily_basic_pt(symbols=['SZSE.000001', 'SZSE.300002'], fields='tclose,turnrate,ttl_shr',
+                                  trade_date=None, df=True)
+ 
+        复制成功
+    
+输出：
+        symbol  trade_date  turnrate  tclose     ttl_shr
+0  SZSE.000001  2023-06-27    0.2379   11.28  1.9406e+10
+1  SZSE.300002  2023-06-27    7.3596   13.44  1.9611e+09
+ 
+        复制成功
+    
+注意：
+1. 如果fields参数的财务字段填写不正确，或填写空字段""，会报错提示“填写的 fields 不正确”。fields不能超过20个字段
+基础指标
+字段名	类型	中文名称	量纲	说明
+tclose	float	收盘价	元	
+turnrate	float	当日换手率	%	
+ttl_shr	float	总股本	股	
+circ_shr	float	流通股本（流通股本=无限售条件流通股本+有限售条件流通股本）	股	
+ttl_shr_unl	float	无限售条件流通股本(行情软件定义的流通股)	股	
+ttl_shr_ltd	float	有限售条件股本	股	
+a_shr_unl	float	无限售条件流通股本(A股)	股	
+h_shr_unl	float	无限售条件流通股本(H股)	股	
+#stk_get_fundamentals_balance - 查询资产负债表数据
+查询指定时间段某一股票所属上市公司的资产负债表数据
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准
+函数原型：
+stk_get_fundamentals_balance(symbol, rpt_type=None, data_type=None, start_date=None, end_date=None, fields, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+symbol	str	股票代码	Y	无	必填，只能填一个股票标的，使用时参考symbol
+
+fields	str	返回字段	Y	无	指定需要返回的财务字段， 如有多个字段，中间用英文逗号分隔
+rpt_type	int	报表类型	N	None	按报告期查询可指定以下报表类型： 1-一季度报
+6-中报
+9-前三季报
+12-年报 默认None为不限
+data_type	int	数据类型	N	None	在发布原始财务报告以后，上市公司可能会对数据进行修正。
+101-合并原始
+102-合并调整
+201-母公司原始
+202-母公司调整 默认None返回当期合并调整，如果没有调整返回合并原始
+start_date	str	开始时间	N	None	开始时间，时间类型为报告日期，%Y-%m-%d 格式， 默认None表示最新时间
+end_date	str	结束时间	N	None	结束时间，时间类型为报告日期，%Y-%m-%d 格式， 默认None表示最新时间
+df	bool	返回格式	N	False	是否返回 dataframe 格式 ， 默认False返回 list[dict]
+返回值：
+字段名	类型	中文名称	说明
+symbol	str	股票代码	
+pub_date	str	发布日期	若数据类型选择合并原始(data_type=101)，则返回原始发布的发布日期 若数据类型选择合并调整(data_type=102)，则返回调整后最新发布日期 若数据类型选择母公司原始(data_type=201)，则返回母公司原始发布的发布日期
+若数据类型选择母公司调整(data_type=202)，则返回母公司调整后最新发布日期
+rpt_date	str	报告日期	报告截止日期，财报统计的最后一天，在指定时间段[开始时间,结束时间]内的报告截止日期
+rpt_type	int	报表类型	返回数据的报表类型：1-一季度报, 6-中报, 9-前三季报, 12-年报
+data_type	int	数据类型	返回数据的数据类型：101-合并原始, 102-合并调整, 201-母公司原始, 202-母公司调整
+fields	list[float]	财务字段数据	指定返回 fields字段的数值. 支持的字段名请参考 资产负债表
+
+示例：
+stk_get_fundamentals_balance(symbol='SHSE.600000', rpt_type=12, data_type=None, start_date='2022-12-31', end_date='2022-12-31', fields='lt_eqy_inv', df=True)
+ 
+        复制成功
+    
+输出：
+        symbol    pub_date    rpt_date  rpt_type  data_type    lt_eqy_inv
+0  SHSE.600000  2022-10-29  2021-12-31        12        102 2819000000.00
+ 
+        复制成功
+    
+注意：
+1. 当start_date == end_date时，取离 end_date 最近报告日期的一条数据，
+当start_dat< end_date时，取指定时间段的数据，
+当 start_date > end_date时，返回报错。
+2. 若在指定历史时间段内，有多个同一类型报表（如不同年份的一季度报表），将按照报告日期顺序返回。
+3. 如果fields参数的财务字段填写不正确，或填写空字段，会报错提示“填写的 fields 不正确”。fields不能超过20个字段
+资产负债表
+字段名	类型	中文名称	量纲	说明
+流动资产(资产)				
+cash_bal_cb	float	现金及存放中央银行款项	元	银行
+dpst_ob	float	存放同业款项	元	银行
+mny_cptl	float	货币资金	元	
+cust_cred_dpst	float	客户信用资金存款	元	证券
+cust_dpst	float	客户资金存款	元	证券
+pm	float	贵金属	元	银行
+bal_clr	float	结算备付金	元	
+cust_rsv	float	客户备付金	元	证券
+ln_to_ob	float	拆出资金	元	
+fair_val_fin_ast	float	以公允价值计量且其变动计入当期损益的金融资产	元	
+ppay	float	预付款项	元	
+fin_out	float	融出资金	元	
+trd_fin_ast	float	交易性金融资产	元	
+deriv_fin_ast	float	衍生金融资产	元	
+note_acct_rcv	float	应收票据及应收账款	元	
+note_rcv	float	应收票据	元	
+acct_rcv	float	应收账款	元	
+acct_rcv_fin	float	应收款项融资	元	
+int_rcv	float	应收利息	元	
+dvd_rcv	float	应收股利	元	
+oth_rcv	float	其他应收款	元	
+in_prem_rcv	float	应收保费	元	
+rin_acct_rcv	float	应收分保账款	元	
+rin_rsv_rcv	float	应收分保合同准备金	元	保险
+rcv_un_prem_rin_rsv	float	应收分保未到期责任准备金	元	
+rcv_clm_rin_rsv	float	应收分保未决赔偿准备金	元	保险
+rcv_li_rin_rsv	float	应收分保寿险责任准备金	元	保险
+rcv_lt_hi_rin_rsv	float	应收分保长期健康险责任准备金	元	保险
+ph_plge_ln	float	保户质押贷款	元	保险
+ttl_oth_rcv	float	其他应收款合计	元	
+rfd_dpst	float	存出保证金	元	证券、保险
+term_dpst	float	定期存款	元	保险
+pur_resell_fin	float	买入返售金融资产	元	
+aval_sale_fin	float	可供出售金融资产	元	
+htm_inv	float	持有至到期投资	元	
+hold_for_sale	float	持有待售资产	元	
+acct_rcv_inv	float	应收款项类投资	元	保险
+invt	float	存货	元	
+contr_ast	float	合同资产	元	
+ncur_ast_one_y	float	一年内到期的非流动资产	元	
+oth_cur_ast	float	其他流动资产	元	
+cur_ast_oth_item	float	流动资产其他项目	元	
+ttl_cur_ast	float	流动资产合计	元	
+非流动资产(资产)				
+loan_adv	float	发放委托贷款及垫款	元	
+cred_inv	float	债权投资	元	
+oth_cred_inv	float	其他债权投资	元	
+lt_rcv	float	长期应收款	元	
+lt_eqy_inv	float	长期股权投资	元	
+oth_eqy_inv	float	其他权益工具投资	元	
+rfd_cap_guar_dpst	float	存出资本保证金	元	保险
+oth_ncur_fin_ast	float	其他非流动金融资产	元	
+amor_cos_fin_ast_ncur	float	以摊余成本计量的金融资产（非流动）	元	
+fair_val_oth_inc_ncur	float	以公允价值计量且其变动计入其他综合收益的金融资产（非流动）	元	
+inv_prop	float	投资性房地产	元	
+fix_ast	float	固定资产	元	
+const_prog	float	在建工程	元	
+const_matl	float	工程物资	元	
+fix_ast_dlpl	float	固定资产清理	元	
+cptl_bio_ast	float	生产性生物资产	元	
+oil_gas_ast	float	油气资产	元	
+rig_ast	float	使用权资产	元	
+intg_ast	float	无形资产	元	
+trd_seat_fee	float	交易席位费	元	证券
+dev_exp	float	开发支出	元	
+gw	float	商誉	元	
+lt_ppay_exp	float	长期待摊费用	元	
+dfr_tax_ast	float	递延所得税资产	元	
+oth_ncur_ast	float	其他非流动资产	元	
+ncur_ast_oth_item	float	非流动资产其他项目	元	
+ttl_ncur_ast	float	非流动资产合计	元	
+oth_ast	float	其他资产	元	银行、证券、保险
+ast_oth_item	float	资产其他项目	元	
+ind_acct_ast	float	独立账户资产	元	保险
+ttl_ast	float	资产总计	元	
+流动负债(负债)				
+brw_cb	float	向中央银行借款	元	
+dpst_ob_fin_inst	float	同业和其他金融机构存放款项	元	银行、保险
+ln_fm_ob	float	拆入资金	元	
+fair_val_fin_liab	float	以公允价值计量且其变动计入当期损益的金融负债	元	
+sht_ln	float	短期借款	元	
+adv_acct	float	预收款项	元	
+contr_liab	float	合同负债	元	
+trd_fin_liab	float	交易性金融负债	元	
+deriv_fin_liab	float	衍生金融负债	元	
+sell_repo_ast	float	卖出回购金融资产款	元	
+cust_bnk_dpst	float	吸收存款	元	银行、保险
+dpst_cb_note_pay	float	存款证及应付票据	元	银行
+dpst_cb	float	存款证	元	银行
+acct_rcv_adv	float	预收账款	元	保险
+in_prem_rcv_adv	float	预收保费	元	保险
+fee_pay	float	应付手续费及佣金	元	
+note_acct_pay	float	应付票据及应付账款	元	
+stlf_pay	float	应付短期融资款	元	
+note_pay	float	应付票据	元	
+acct_pay	float	应付账款	元	
+rin_acct_pay	float	应付分保账款	元	
+emp_comp_pay	float	应付职工薪酬	元	
+tax_pay	float	应交税费	元	
+int_pay	float	应付利息	元	
+dvd_pay	float	应付股利	元	
+ph_dvd_pay	float	应付保单红利	元	保险
+indem_pay	float	应付赔付款	元	保险
+oth_pay	float	其他应付款	元	
+ttl_oth_pay	float	其他应付款合计	元	
+ph_dpst_inv	float	保户储金及投资款	元	保险
+in_contr_rsv	float	保险合同准备金	元	保险
+un_prem_rsv	float	未到期责任准备金	元	保险
+clm_rin_rsv	float	未决赔款准备金	元	保险
+li_liab_rsv	float	寿险责任准备金	元	保险
+lt_hi_liab_rsv	float	长期健康险责任准备金	元	保险
+cust_bnk_dpst_fin	float	吸收存款及同业存放	元	
+inter_pay	float	内部应付款	元	
+agy_secu_trd	float	代理买卖证券款	元	
+agy_secu_uw	float	代理承销证券款	元	
+sht_bnd_pay	float	应付短期债券	元	
+est_cur_liab	float	预计流动负债	元	
+liab_hold_for_sale	float	持有待售负债	元	
+ncur_liab_one_y	float	一年内到期的非流动负债	元	
+oth_cur_liab	float	其他流动负债	元	
+cur_liab_oth_item	float	流动负债其他项目	元	
+ttl_cur_liab	float	流动负债合计	元	
+非流动负债（负债）				
+lt_ln	float	长期借款	元	
+lt_pay	float	长期应付款	元	
+leas_liab	float	租赁负债		
+dfr_inc	float	递延收益	元	
+dfr_tax_liab	float	递延所得税负债	元	
+bnd_pay	float	应付债券	元	
+bnd_pay_pbd	float	其中:永续债	元	
+bnd_pay_pfd	float	其中:优先股	元	
+oth_ncur_liab	float	其他非流动负债	元	
+spcl_pay	float	专项应付款	元	
+ncur_liab_oth_item	float	非流动负债其他项目	元	
+lt_emp_comp_pay	float	长期应付职工薪酬	元	
+est_liab	float	预计负债	元	
+oth_liab	float	其他负债	元	银行、证券、保险
+liab_oth_item	float	负债其他项目	元	银行、证券、保险
+ttl_ncur_liab	float	非流动负债合计	元	
+ind_acct_liab	float	独立账户负债	元	保险
+ttl_liab	float	负债合计	元	
+所有者权益(或股东权益)				
+paid_in_cptl	float	实收资本（或股本）	元	
+oth_eqy	float	其他权益工具	元	
+oth_eqy_pfd	float	其中:优先股	元	
+oth_eqy_pbd	float	其中:永续债	元	
+oth_eqy_oth	float	其中:其他权益工具	元	
+cptl_rsv	float	资本公积	元	
+treas_shr	float	库存股	元	
+oth_comp_inc	float	其他综合收益	元	
+spcl_rsv	float	专项储备	元	
+sur_rsv	float	盈余公积	元	
+rsv_ord_rsk	float	一般风险准备	元	
+trd_risk_rsv	float	交易风险准备	元	证券
+ret_prof	float	未分配利润	元	
+sugg_dvd	float	建议分派股利	元	银行
+eqy_pcom_oth_item	float	归属于母公司股东权益其他项目	元	
+ttl_eqy_pcom	float	归属于母公司股东权益合计	元	
+min_sheqy	float	少数股东权益	元	
+sheqy_oth_item	float	股东权益其他项目	元	
+ttl_eqy	float	股东权益合计	元	
+ttl_liab_eqy	float	负债和股东权益合计	元	
+#stk_get_fundamentals_cashflow - 查询现金流量表数据
+查询指定时间段某一股票所属上市公司的现金流量表数据
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准
+函数原型：
+stk_get_fundamentals_cashflow(symbol, rpt_type=None, data_type=None, start_date=None, end_date=None, fields, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+symbol	str	股票代码	Y	无	必填，只能填一个股票标的，使用时参考symbol
+
+fields	str	返回字段	Y	无	指定需要返回的财务字段， 如有多个字段，中间用英文逗号分隔
+rpt_type	int	报表类型	N	None	按报告期查询可指定以下报表类型：
+1-一季度报
+6-中报
+9-前三季报
+12-年报
+默认None为不限
+data_type	int	数据类型	N	None	在发布原始财务报告以后，上市公司可能会对数据进行修正。
+101-合并原始
+102-合并调整
+201-母公司原始
+202-母公司调整 默认None返回当期合并调整，如果没有调整返回合并原始
+start_date	str	开始时间	N	None	开始时间，时间类型为报告日期，%Y-%m-%d 格式， 默认None表示最新时间
+end_date	str	结束时间	N	None	结束时间，时间类型为报告日期，%Y-%m-%d 格式， 默认None表示最新时间
+df	bool	返回格式	N	False	是否返回 dataframe 格式 ， 默认False返回 list[dict]
+返回值：
+字段名	类型	中文名称	说明
+symbol	str	股票代码	
+pub_date	str	发布日期	若数据类型选择合并原始(data_type=101)，则返回原始发布的发布日期 若数据类型选择合并调整(data_type=102)，则返回调整后最新发布日期 若数据类型选择母公司原始(data_type=201)，则返回母公司原始发布的发布日期
+若数据类型选择母公司调整(data_type=202)，则返回母公司调整后最新发布日期
+rpt_date	str	报告日期	报告截止日期，财报统计的最后一天，在指定时间段[开始时间,结束时间]内的报告截止日期
+rpt_type	int	报表类型	返回数据的报表类型：1-一季度报, 6-中报, 9-前三季报, 12-年报
+data_type	int	数据类型	返回数据的数据类型：101-合并原始, 102-合并调整, 201-母公司原始, 202-母公司调整
+fields	list[float]	财务字段数据	指定返回 fields字段的数值. 支持的字段名请参考 现金流量表
+
+示例：
+stk_get_fundamentals_cashflow(symbol='SHSE.600000', rpt_type=None, data_type=101, start_date='2022-12-31', end_date='2022-12-31', fields='cash_pay_fee', df=True)
+ 
+        复制成功
+    
+输出：
+        symbol    pub_date    rpt_date  rpt_type  data_type  cash_pay_fee
+0  SHSE.600000  2022-10-29  2022-09-30         9        101 7261000000.00
+ 
+        复制成功
+    
+注意：
+1. 当start_date == end_date时，取离 end_date 最近报告日期的一条数据，
+当start_dat< end_date时，取指定时间段的数据，
+当 start_date > end_date时，返回报错。
+2. 若在指定历史时间段内，有多个同一类型报表（如不同年份的一季度报表），将按照报告日期顺序返回。
+3. 如果fields参数的财务字段填写不正确，或填写空字段，会报错提示“填写的 fields 不正确”。fields不能超过20个字段
+现金流量表
+字段名	类型	中文名称	量纲	说明
+一、经营活动产生的现金流量				
+cash_rcv_sale	float	销售商品、提供劳务收到的现金	元	
+net_incr_cust_dpst_ob	float	客户存款和同业存放款项净增加额	元	
+net_incr_cust_dpst	float	客户存款净增加额	元	银行
+net_incr_dpst_ob	float	同业及其他金融机构存放款项净增加额	元	银行
+net_incr_brw_cb	float	向中央银行借款净增加额	元	
+net_incr_ln_fm_oth	float	向其他金融机构拆入资金净增加额	元	
+cash_rcv_orig_in	float	收到原保险合同保费取得的现金	元	
+net_cash_rcv_rin_biz	float	收到再保险业务现金净额	元	
+net_incr_ph_dpst_inv	float	保户储金及投资款净增加额	元	
+net_decrdpst_cb_ob	float	存放中央银行和同业款项及其他金融机构净减少额	元	银行、保险
+net_decr_cb	float	存放中央银行款项净减少额	元	银行
+net_decr_ob_fin_inst	float	存放同业及其他金融机构款项净减少额	元	银行
+net_cert_dpst	float	存款证净额	元	银行
+net_decr_trd_fin	float	交易性金融资产净减少额	元	银行
+net_incr_trd_liab	float	交易性金融负债净增加额	元	银行
+cash_rcv_int_fee	float	收取利息、手续费及佣金的现金	元	
+cash_rcv_int	float	其中：收取利息的现金	元	银行
+cash_rcv_fee	float	收取手续费及佣金的现金	元	银行
+net_incr_lnfm_sell_repo	float	拆入资金及卖出回购金融资产款净增加额	元	银行
+net_incr_ln_fm	float	拆入资金净增加额	元	
+net_incr_sell_repo	float	卖出回购金融资产款净增加额	元	银行 保险
+net_decr_lnto_pur_resell	float	拆出资金及买入返售金融资产净减少额	元	银行
+net_decr_ln_cptl	float	拆出资金净减少额	元	银行、保险
+net_dect_pur_resell	float	买入返售金融资产净减少额	元	银行、保险
+net_incr_repo	float	回购业务资金净增加额	元	
+net_decr_repo	float	回购业务资金净减少额	元	证券
+tax_rbt_rcv	float	收到的税费返还	元	
+net_cash_rcv_trd	float	收到交易性金融资产现金净额	元	保险
+cash_rcv_oth_oper	float	收到其他与经营活动有关的现金	元	
+net_cash_agy_secu_trd	float	代理买卖证券收到的现金净额	元	证券
+cash_rcv_pur_resell	float	买入返售金融资产收到的现金	元	证券、保险
+net_cash_agy_secu_uw	float	代理承销证券收到的现金净额	元	证券
+cash_rcv_dspl_debt	float	处置抵债资产收到的现金	元	银行
+canc_loan_rcv	float	收回的已于以前年度核销的贷款	元	银行
+cf_in_oper	float	经营活动现金流入小计	元	
+cash_pur_gds_svc	float	购买商品、接受劳务支付的现金	元	
+net_incr_ln_adv_cust	float	客户贷款及垫款净增加额	元	
+net_decr_brw_cb	float	向中央银行借款净减少额	元	银行
+net_incr_dpst_cb_ob	float	存放中央银行和同业款项净增加额	元	
+net_incr_cb	float	存放中央银行款项净增加额	元	银行
+net_incr_ob_fin_inst	float	存放同业及其他金融机构款项净增加额	元	银行
+net_decr_dpst_ob	float	同业及其他机构存放款减少净额	元	银行
+net_decr_issu_cert_dpst	float	已发行存款证净减少额	元	银行
+net_incr_lnto_pur_resell	float	拆出资金及买入返售金融资产净增加额	元	银行
+net_incr_ln_to	float	拆出资金净增加额	元	银行、保险
+net_incr_pur_resell	float	买入返售金融资产净增加额	元	银行、保险
+net_decr_lnfm_sell_repo	float	拆入资金及卖出回购金融资产款净减少额	元	银行
+net_decr_ln_fm	float	拆入资金净减少额	元	银行、证券
+net_decr_sell_repo	float	卖出回购金融资产净减少额	元	银行、保险
+net_incr_trd_fin	float	交易性金融资产净增加额	元	银行
+net_decr_trd_liab	float	交易性金融负债净减少额	元	银行
+cash_pay_indem_orig	float	支付原保险合同赔付款项的现金	元	
+net_cash_pay_rin_biz	float	支付再保险业务现金净额	元	保险
+cash_pay_int_fee	float	支付利息、手续费及佣金的现金	元	
+cash_pay_int	float	其中：支付利息的现金	元	银行
+cash_pay_fee	float	支付手续费及佣金的现金	元	银行
+ph_dvd_pay	float	支付保单红利的现金	元	
+net_decr_ph_dpst_inv	float	保户储金及投资款净减少额	元	保险
+cash_pay_emp	float	支付给职工以及为职工支付的现金		
+cash_pay_tax	float	支付的各项税费	元	
+net_cash_pay_trd	float	支付交易性金融资产现金净额	元	保险
+cash_pay_oth_oper	float	支付其他与经营活动有关的现金	元	
+net_incr_dspl_trd_fin	float	处置交易性金融资产净增加额	元	
+cash_pay_fin_leas	float	购买融资租赁资产支付的现金	元	银行
+net_decr_agy_secu_pay	float	代理买卖证券支付的现金净额（净减少额）	元	证券
+net_decr_dspl_trd_fin	float	处置交易性金融资产的净减少额	元	证券
+cf_out_oper	float	经营活动现金流出小计	元	
+net_cf_oper	float	经营活动产生的现金流量净额	元	
+二、投资活动产生的现金流量：				
+cash_rcv_sale_inv	float	收回投资收到的现金	元	
+inv_inc_rcv	float	取得投资收益收到的现金	元	
+cash_rcv_dvd_prof	float	分得股利或利润所收到的现金	元	银行
+cash_rcv_dspl_ast	float	处置固定资产、无形资产和其他长期资产收回的现金净额	元	
+cash_rcv_dspl_sub_oth	float	处置子公司及其他营业单位收到的现金净额	元	
+cash_rcv_oth_inv	float	收到其他与投资活动有关的现金	元	
+cf_in_inv	float	投资活动现金流入小计	元	
+pur_fix_intg_ast	float	购建固定资产、无形资产和其他长期资产支付的现金	元	
+cash_out_dspl_sub_oth	float	处置子公司及其他营业单位流出的现金净额	元	保险
+cash_pay_inv	float	投资支付的现金	元	
+net_incr_ph_plge_ln	float	保户质押贷款净增加额	元	保险
+add_cash_pled_dpst	float	增加质押和定期存款所支付的现金	元	
+net_incr_plge_ln	float	质押贷款净增加额	元	
+net_cash_get_sub	float	取得子公司及其他营业单位支付的现金净额	元	
+net_pay_pur_resell	float	支付买入返售金融资产现金净额	元	证券、保险
+cash_pay_oth_inv	float	支付其他与投资活动有关的现金	元	
+cf_out_inv	float	投资活动现金流出小计		
+net_cf_inv	float	投资活动产生的现金流量净额	元	
+三、筹资活动产生的现金流量：				
+cash_rcv_cptl	float	吸收投资收到的现金	元	
+sub_rcv_ms_inv	float	其中：子公司吸收少数股东投资收到的现金	元	
+brw_rcv	float	取得借款收到的现金	元	
+cash_rcv_bnd_iss	float	发行债券收到的现金	元	
+net_cash_rcv_sell_repo	float	收到卖出回购金融资产款现金净额	元	保险
+cash_rcv_oth_fin	float	收到其他与筹资活动有关的现金	元	
+issu_cert_dpst	float	发行存款证	元	银行
+cf_in_fin_oth	float	筹资活动现金流入其他项目	元	
+cf_in_fin	float	筹资活动现金流入小计	元	
+cash_rpay_brw	float	偿还债务支付的现金	元	
+cash_pay_bnd_int	float	偿付债券利息支付的现金	元	银行
+cash_pay_dvd_int	float	分配股利、利润或偿付利息支付的现金	元	
+sub_pay_dvd_prof	float	其中：子公司支付给少数股东的股利、利润	元	
+cash_pay_oth_fin	float	支付其他与筹资活动有关的现金	元	
+net_cash_pay_sell_repo	float	支付卖出回购金融资产款现金净额	元	保险
+cf_out_fin	float	筹资活动现金流出小计	元	
+net_cf_fin	float	筹资活动产生的现金流量净额	元	
+efct_er_chg_cash	float	四、汇率变动对现金及现金等价物的影响	元	
+net_incr_cash_eq	float	五、现金及现金等价物净增加额	元	
+cash_cash_eq_bgn	float	加：期初现金及现金等价物余额	元	
+cash_cash_eq_end	float	六、期末现金及现金等价物余额	元	
+补充资料 1．将净利润调节为经营活动现金流量：				
+net_prof	float	净利润	元	
+ast_impr	float	资产减值准备	元	
+accr_prvs_ln_impa	float	计提贷款减值准备	元	银行
+accr_prvs_oth_impa	float	计提其他资产减值准备	元	银行
+accr_prem_rsv	float	提取的保险责任准备金	元	保险
+accr_unearn_prem_rsv	float	提取的未到期的责任准备金	元	保险
+defr_fix_prop	float	固定资产和投资性房地产折旧	元	
+depr_oga_cba	float	其中:固定资产折旧、油气资产折耗、生产性生物资产折旧	元	
+amor_intg_ast_lt_exp	float	无形资产及长期待摊费用等摊销	元	银行、证券、保险
+amort_intg_ast	float	无形资产摊销	元	
+amort_lt_exp_ppay	float	长期待摊费用摊销	元	
+dspl_ast_loss	float	处置固定资产、无形资产和其他长期资产的损失	元	
+fair_val_chg_loss	float	固定资产报废损失	元	
+fv_chg_loss	float	公允价值变动损失	元	
+dfa	float	固定资产折旧	元	银行
+fin_exp	float	财务费用	元	
+inv_loss	float	投资损失	元	
+exchg_loss	float	汇兑损失	元	银行、证券、保险
+dest_incr	float	存款的增加	元	银行
+loan_decr	float	贷款的减少	元	银行
+cash_pay_bnd_int_iss	float	发行债券利息支出	元	银行
+dfr_tax	float	递延所得税	元	
+dfr_tax_ast_decr	float	其中:递延所得税资产减少	元	
+dfr_tax_liab_incr	float	递延所得税负债增加	元	
+invt_decr	float	存货的减少	元	
+decr_rcv_oper	float	经营性应收项目的减少	元	
+incr_pay_oper	float	经营性应付项目的增加	元	
+oth	float	其他	元	
+cash_end	float	现金的期末余额	元	
+cash_bgn	float	减：现金的期初余额	元	
+cash_eq_end	float	加:现金等价物的期末余额	元	
+cash_eq_bgn	float	减:现金等价物的期初余额	元	
+cred_impr_loss	float	信用减值损失	元	
+est_liab_add	float	预计负债的增加	元	
+dr_cnv_cptl	float	债务转为资本	元	
+cptl_bnd_expr_one_y	float	一年内到期的可转换公司债券	元	
+fin_ls_fix_ast	float	融资租入固定资产	元	
+amort_dfr_inc	float	递延收益摊销	元	
+depr_inv_prop	float	投资性房地产折旧	元	
+trd_fin_decr	float	交易性金融资产的减少	元	证券、保险
+im_net_cf_oper	float	间接法-经营活动产生的现金流量净额	元	
+im_net_incr_cash_eq	float	间接法-现金及现金等价物净增加额	元	
+#stk_get_fundamentals_income - 查询利润表数据
+查询指定时间段某一股票所属上市公司的利润表数据
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准
+函数原型：
+stk_get_fundamentals_income(symbol, rpt_type=None, data_type=None, start_date=None, end_date=None, fields, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+symbol	str	股票代码	Y	无	必填，只能填一个股票标的，使用时参考symbol
+
+fields	str	返回字段	Y	无	指定需要返回的财务字段， 如有多个字段，中间用英文逗号分隔
+rpt_type	int	报表类型	N	None	按报告期查询可指定以下报表类型：
+1-一季度报
+6-中报
+9-前三季报
+12-年报
+默认None为不限
+data_type	int	数据类型	N	None	在发布原始财务报告以后，上市公司可能会对数据进行修正。
+101-合并原始
+102-合并调整
+201-母公司原始
+202-母公司调整 默认None返回当期合并调整，如果没有调整返回合并原始
+start_date	str	开始时间	N	None	开始时间，时间类型为报告日期，%Y-%m-%d 格式， 默认None表示最新时间
+end_date	str	结束时间	N	None	结束时间，时间类型为报告日期，%Y-%m-%d 格式， 默认None表示最新时间
+df	bool	返回格式	N	False	是否返回 dataframe 格式 ， 默认False返回 list[dict]
+返回值：
+字段名	类型	中文名称	说明
+symbol	str	股票代码	
+pub_date	str	发布日期	若数据类型选择合并原始(data_type=101)，则返回原始发布的发布日期 若数据类型选择合并调整(data_type=102)，则返回调整后最新发布日期 若数据类型选择母公司原始(data_type=201)，则返回母公司原始发布的发布日期
+若数据类型选择母公司调整(data_type=202)，则返回母公司调整后最新发布日期
+rpt_date	str	报告日期	报告截止日期，财报统计的最后一天，在指定时间段[开始时间,结束时间]内的报告截止日期
+rpt_type	int	报表类型	返回数据的报表类型：1-一季度报, 6-中报, 9-前三季报, 12-年报
+data_type	int	数据类型	返回数据的数据类型：101-合并原始, 102-合并调整, 201-母公司原始, 202-母公司调整
+fields	list[float]	财务字段数据	指定返回 fields字段的数值. 支持的字段名请参考 利润表
+
+示例：
+stk_get_fundamentals_income(symbol='SHSE.600000', rpt_type=6, data_type=None, start_date='2022-12-31', end_date='2022-12-31', fields='inc_oper', df=True)
+ 
+        复制成功
+    
+输出：
+        symbol    pub_date    rpt_date  rpt_type  data_type       inc_oper
+0  SHSE.600000  2022-08-27  2022-06-30         6        102 98644000000.00
+ 
+        复制成功
+    
+注意：
+1. 当start_date == end_date时，取离 end_date 最近报告日期的一条数据，
+当start_dat< end_date时，取指定时间段的数据，
+当 start_date > end_date时，返回报错。
+2. 若在指定历史时间段内，有多个同一类型报表（如不同年份的一季度报表），将按照报告日期顺序返回。
+3. 如果fields参数的财务字段填写不正确，或填写空字段，会报错提示“填写的 fields 不正确”。fields不能超过20个字段
+利润表
+字段名	类型	中文名称	量纲	说明
+ttl_inc_oper	float	营业总收入	元	
+inc_oper	float	营业收入	元	
+net_inc_int	float	利息净收入	元	证券、银行、保险
+exp_int	float	利息支出	元	
+net_inc_fee_comm	float	手续费及佣金净收入	元	证券、银行
+inc_rin_prem	float	其中：分保费收入	元	保险
+net_inc_secu_agy	float	其中:代理买卖证券业务净收入	元	证券
+inc_fee_comm	float	手续费及佣金收入	元	
+in_prem_earn	float	已赚保费	元	保险
+inc_in_biz	float	其中:保险业务收入	元	保险
+rin_prem_cede	float	分出保费	元	保险
+unear_prem_rsv	float	提取未到期责任准备金	元	保险
+net_inc_uw	float	证券承销业务净收入	元	证券
+net_inc_cust_ast_mgmt	float	受托客户资产管理业务净收入	元	证券
+inc_fx	float	汇兑收益	元	
+inc_other_oper	float	其他业务收入	元	
+inc_oper_balance	float	营业收入平衡项目	元	
+ttl_inc_oper_other	float	营业总收入其他项目	元	
+ttl_cost_oper	float	营业总成本	元	
+cost_oper	float	营业成本	元	
+exp_oper	float	营业支出	元	证券、银行、保险
+biz_tax_sur	float	营业税金及附加	元	
+exp_sell	float	销售费用	元	
+exp_adm	float	管理费用	元	
+exp_rd	float	研发费用	元	
+exp_fin	float	财务费用	元	
+int_fee	float	其中:利息费用	元	
+inc_int	float	利息收入	元	
+exp_oper_adm	float	业务及管理费	元	证券、银行、保险
+exp_rin	float	减:摊回分保费用	元	保险
+rfd_prem	float	退保金	元	保险
+comp_pay	float	赔付支出	元	保险
+rin_clm_pay	float	减:摊回赔付支出	元	保险
+draw_insur_liab	float	提取保险责任准备金	元	保险
+amor_insur_liab	float	减:摊回保险责任准备金	元	保险
+exp_ph_dvd	float	保单红利支出	元	保险
+exp_fee_comm	float	手续费及佣金支出	元	
+other_oper_cost	float	其他业务成本	元	
+oper_exp_balance	float	营业支出平衡项目	元	证券、银行、保险
+exp_oper_other	float	营业支出其他项目	元	证券、银行、保险
+ttl_cost_oper_other	float	营业总成本其他项目	元	
+其他经营收益			元	
+inc_inv	float	投资收益	元	
+inv_inv_jv_p	float	对联营企业和合营企业的投资收益	元	
+inc_ast_dspl	float	资产处置收益	元	
+ast_impr_loss	float	资产减值损失(新)	元	
+cred_impr_loss	float	信用减值损失(新)	元	
+inc_fv_chg	float	公允价值变动收益	元	
+inc_other	float	其他收益	元	
+oper_prof_balance	float	营业利润平衡项目	元	
+oper_prof	float	营业利润	元	
+inc_noper	float	营业外收入	元	
+exp_noper	float	营业外支出	元	
+ttl_prof_balance	float	利润总额平衡项目	元	
+oper_prof_other	float	营业利润其他项目	元	
+ttl_prof	float	利润总额	元	
+inc_tax	float	所得税费用	元	
+net_prof	float	净利润	元	
+oper_net_prof	float	持续经营净利润	元	
+net_prof_pcom	float	归属于母公司股东的净利润	元	
+min_int_inc	float	少数股东损益	元	
+end_net_prof	float	终止经营净利润	元	
+net_prof_other	float	净利润其他项目	元	
+eps_base	float	基本每股收益	元	
+eps_dil	float	稀释每股收益	元	
+other_comp_inc	float	其他综合收益	元	
+other_comp_inc_pcom	float	归属于母公司股东的其他综合收益	元	
+other_comp_inc_min	float	归属于少数股东的其他综合收益	元	
+ttl_comp_inc	float	综合收益总额	元	
+ttl_comp_inc_pcom	float	归属于母公司所有者的综合收益总额	元	
+ttl_comp_inc_min	float	归属于少数股东的综合收益总额	元	
+prof_pre_merge	float	被合并方在合并前实现利润	元	
+net_rsv_in_contr	float	提取保险合同准备金净额	元	
+net_pay_comp	float	赔付支出净额	元	
+net_loss_ncur_ast	float	非流动资产处置净损失	元	
+amod_fin_asst_end	float	以摊余成本计量的金融资产终止确认收益	元	
+cash_flow_hedging_pl	float	现金流量套期损益的有效部分	元	
+cur_trans_diff	float	外币财务报表折算差额	元	
+gain_ncur_ast	float	非流动资产处置利得	元	
+afs_fv_chg_pl	float	可供出售金融资产公允价值变动损益	元	
+oth_eqy_inv_fv_chg	float	其他权益工具投资公允价值变动	元	
+oth_debt_inv_fv_chg	float	其他债权投资公允价值变动	元	
+oth_debt_inv_cred_impr	float	其他债权投资信用减值准备	元	
+#stk_get_finance_prime - 查询财务主要指标数据
+查询指定时间段股票所属上市公司的财务主要指标
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准
+函数原型：
+stk_get_finance_prime(symbol, fields, rpt_type=None, data_type=None, start_date=None, end_date=None, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+symbol	str	股票代码	Y	无	必填，只能填一个股票标的，使用时参考symbol
+
+fields	str	返回字段	Y	无	指定需要返回的财务主要指标， 如有多个字段，中间用英文逗号分隔
+rpt_type	int	报表类型	N	None	按报告期查询可指定以下报表类型： 1-一季度报
+6-中报
+9-前三季报
+12-年报 默认None为不限
+data_type	int	数据类型	N	None	在发布原始财务报告以后，上市公司可能会对数据进行修正。
+101-合并原始
+102-合并调整
+201-母公司原始
+202-母公司调整 默认None返回当期合并调整，如果没有调整返回合并原始
+start_date	str	开始时间	N	None	开始时间，时间类型为报告日期，%Y-%m-%d 格式， 默认None表示最新时间
+end_date	str	结束时间	N	None	结束时间，时间类型为报告日期，%Y-%m-%d 格式， 默认None表示最新时间
+df	bool	返回格式	N	False	是否返回 dataframe 格式 ， 默认False返回 list[dict]
+返回值：
+字段名	类型	中文名称	说明
+symbol	str	股票代码	
+pub_date	str	发布日期	若数据类型选择合并原始(data_type=101)，则返回原始发布的发布日期 若数据类型选择合并调整(data_type=102)，则返回调整后最新发布日期 若数据类型选择母公司原始(data_type=201)，则返回母公司原始发布的发布日期
+若数据类型选择母公司调整(data_type=202)，则返回母公司调整后最新发布日期
+rpt_date	str	报告日期	报告截止日期，财报统计的最后一天，在指定时间段[开始时间,结束时间]内的报告截止日期
+rpt_type	int	报表类型	返回数据的报表类型：1-一季度报, 6-中报, 9-前三季报, 12-年报
+data_type	int	数据类型	返回数据的数据类型：101-合并原始, 102-合并调整, 201-母公司原始, 202-母公司调整
+fields	list[float]	财务字段数据	指定返回 fields字段的数值. 支持的字段名请参考 财务主要指标
+
+示例：
+stk_get_finance_prime(symbol='SHSE.600000', fields='eps_basic,eps_dil',rpt_type=None, data_type=None,
+start_date=None, end_date=None, df=True)
+ 
+        复制成功
+    
+输出：
+        symbol    pub_date    rpt_date  rpt_type  data_type  eps_dil  eps_basic
+0  SHSE.600000  2023-04-29  2023-03-31         1        101     0.47       0.51
+ 
+        复制成功
+    
+注意：
+1. 当start_date == end_date时，取离 end_date 最近报告日期的一条数据，
+当start_dat< end_date时，取指定时间段的数据，
+当 start_date > end_date时，返回报错。
+2. 若在指定历史时间段内，有多个同一类型报表（如不同年份的一季度报表），将按照报告日期顺序返回。
+3. 如果fields参数的财务字段填写不正确，或填写空字段，会报错提示“填写的 fields 不正确”。fields不能超过20个字段
+财务主要指标
+字段名	类型	中文名称	量纲	说明
+eps_basic	float	基本每股收益	元	
+eps_dil	float	稀释每股收益	元	
+eps_basic_cut	float	扣除非经常性损益后的基本每股收益	元	
+eps_dil_cut	float	扣除非经常性损益后的稀释每股收益	元	
+net_cf_oper_ps	float	每股经营活动产生的现金流量净额	元	
+bps_pcom_ps	float	归属于母公司股东的每股净资产	元	
+ttl_ast	float	总资产	元	
+ttl_liab	float	总负债	元	
+share_cptl	float	股本	股	
+ttl_inc_oper	float	营业总收入	元	
+inc_oper	float	营业收入	元	
+oper_prof	float	营业利润	元	
+ttl_prof	float	利润总额	元	
+ttl_eqy_pcom	float	归属于母公司股东的所有者权益	元	
+net_prof_pcom	float	归属于母公司股东的净利润	元	
+net_prof_pcom_cut	float	扣除非经常性损益后归属于母公司股东的净利润	元	
+roe	float	全面摊薄净资产收益率	%	
+roe_weight_avg	float	加权平均净资产收益率	%	
+roe_cut	float	扣除非经常性损益后的全面摊薄净资产收益率	%	
+roe_weight_avg_cut	float	扣除非经常性损益后的加权平均净资产收益率	%	
+net_cf_oper	float	经营活动产生的现金流量净额	元	
+eps_yoy	float	每股收益同比比例	%	
+inc_oper_yoy	float	营业收入同比比例	%	
+ttl_inc_oper_yoy	float	营业总收入同比比例	%	
+net_prof_pcom_yoy	float	归母净利润同比比例	%	
+bps_sh	float	归属于普通股东的每股净资产	元	
+net_asset	float	归属于普通股东的净资产	元	
+net_prof	float	归属于普通股东的净利润	元	
+net_prof_cut	float	扣除非经常性损益后归属于普通股股东的净利润	元	
+#stk_get_finance_deriv - 查询财务衍生指标数据
+查询指定时间段股票所属上市公司的财务衍生指标
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准
+函数原型：
+stk_get_finance_deriv(symbol, fields, rpt_type=None, data_type=None, start_date=None, end_date=None, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+symbol	str	股票代码	Y	无	必填，只能填一个股票标的，使用时参考symbol
+
+fields	str	返回字段	Y	无	指定需要返回的财务衍生指标， 如有多个字段，中间用英文逗号分隔
+rpt_type	int	报表类型	N	None	按报告期查询可指定以下报表类型： 1-一季度报
+6-中报
+9-前三季报
+12-年报 默认None为不限
+data_type	int	数据类型	N	None	在发布原始财务报告以后，上市公司可能会对数据进行修正。 101-合并原始
+102-合并调整
+201-母公司原始
+202-母公司调整 默认None返回当期合并调整，如果没有调整返回合并原始
+start_date	str	开始时间	N	None	开始时间，时间类型为报告日期，%Y-%m-%d 格式， 默认None表示最新时间
+end_date	str	结束时间	N	None	结束时间，时间类型为报告日期，%Y-%m-%d 格式， 默认None表示最新时间
+df	bool	返回格式	N	False	是否返回 dataframe 格式 ， 默认False返回 list[dict]
+返回值：
+字段名	类型	中文名称	说明
+symbol	str	股票代码	
+pub_date	str	发布日期	若数据类型选择合并原始(data_type=101)，则返回原始发布的发布日期 若数据类型选择合并调整(data_type=102)，则返回调整后最新发布日期 若数据类型选择母公司原始(data_type=201)，则返回母公司原始发布的发布日期
+若数据类型选择母公司调整(data_type=202)，则返回母公司调整后最新发布日期
+rpt_date	str	报告日期	报告截止日期，财报统计的最后一天，在指定时间段[开始时间,结束时间]内的报告截止日期
+rpt_type	int	报表类型	返回数据的报表类型：1-一季度报, 6-中报, 9-前三季报, 12-年报
+data_type	int	数据类型	返回数据的数据类型：101-合并原始, 102-合并调整, 201-母公司原始, 202-母公司调整
+fields	list[float]	财务字段数据	指定返回 fields字段的数值. 支持的字段名请参考 财务衍生指标指标
+
+示例：
+stk_get_finance_deriv(symbol='SHSE.600000', fields='eps_basic,eps_dil2,eps_dil,eps_basic_cut', 
+rpt_type=9, data_type=None, start_date=None, end_date=None, df=True)
+ 
+        复制成功
+    
+输出：
+        symbol    pub_date    rpt_date  ...  eps_dil  eps_basic  eps_dil2
+0  SHSE.600000  2022-10-29  2022-09-30  ...   1.3785       1.31       1.2
+ 
+        复制成功
+    
+注意：
+1. 当start_date == end_date时，取离 end_date 最近报告日期的一条数据，
+当start_dat< end_date时，取指定时间段的数据，
+当 start_date > end_date时，返回报错。
+2. 若在指定历史时间段内，有多个同一类型报表（如不同年份的一季度报表），将按照报告日期顺序返回。
+3. 如果fields参数的财务字段填写不正确，或填写空字段，会报错提示“填写的 fields 不正确”。fields不能超过20个字段
+财务衍生指标指标
+字段名	类型	中文名称	量纲	说明
+eps_basic	float	每股收益EPS(基本)	元	
+eps_dil2	float	每股收益EPS(稀释)	元	
+eps_dil	float	每股收益EPS(期末股本摊薄)	元	
+eps_basic_cut	float	每股收益EPS(扣除/基本)	元	
+eps_dil2_cut	float	每股收益EPS(扣除/稀释)	元	
+eps_dil_cut	float	每股收益EPS(扣除/期末股本摊薄)	元	
+bps	float	每股净资产BPS	元	
+net_cf_oper_ps	float	每股经营活动产生的现金流量净额	元	
+ttl_inc_oper_ps	float	每股营业总收入	元	
+inc_oper_ps	float	每股营业收入	元	
+ebit_ps	float	每股息税前利润	元	
+cptl_rsv_ps	float	每股资本公积	元	
+sur_rsv_ps	float	每股盈余公积	元	
+retain_prof_ps	float	每股未分配利润	元	
+retain_inc_ps	float	每股留存收益	元	
+net_cf_ps	float	每股现金流量净额	元	
+fcff_ps	float	每股企业自由现金流量	元	
+fcfe_ps	float	每股股东自由现金流量	元	
+ebitda_ps	float	每股EBITDA	元	
+roe	float	净资产收益率ROE(摊薄)	%	
+roe_weight	float	净资产收益率ROE(加权)	%	
+roe_avg	float	净资产收益率ROE(平均)	%	
+roe_cut	float	净资产收益率ROE(扣除/摊薄)	%	
+roe_weight_cut	float	净资产收益率ROE(扣除/加权)	%	
+ocf_toi	float	经营性现金净流量/营业总收入		
+eps_dil_yoy	float	稀释每股收益同比增长率	%	
+net_cf_oper_ps_yoy	float	每股经营活动中产生的现金流量净额同比增长率	%	
+ttl_inc_oper_yoy	float	营业总收入同比增长率	%	
+inc_oper_yoy	float	营业收入同比增长率	%	
+oper_prof_yoy	float	营业利润同比增长率	%	
+ttl_prof_yoy	float	利润总额同比增长率	%	
+net_prof_pcom_yoy	float	归属母公司股东的净利润同比增长率	%	
+net_prof_pcom_cut_yoy	float	归属母公司股东的净利润同比增长率(扣除非经常性损益)	%	
+net_cf_oper_yoy	float	经营活动产生的现金流量净额同比增长率	%	
+roe_yoy	float	净资产收益率同比增长率(摊薄)	%	
+net_asset_yoy	float	净资产同比增长率	%	
+ttl_liab_yoy	float	总负债同比增长率	%	
+ttl_asset_yoy	float	总资产同比增长率	%	
+net_cash_flow_yoy	float	现金净流量同比增长率	%	
+bps_gr_begin_year	float	每股净资产相对年初增长率	%	
+ttl_asset_gr_begin_year	float	资产总计相对年初增长率	%	
+ttl_eqy_pcom_gr_begin_year	float	归属母公司的股东权益相对年初增长率	%	
+net_debt_eqy_ev	float	净债务/股权价值	%	
+int_debt_eqy_ev	float	带息债务/股权价值		
+eps_bas_yoy	float	基本每股收益同比增长率	%	
+ebit	float	EBIT(正推法)	元	
+ebitda	float	EBITDA(正推法)	元	
+ebit_inverse	float	EBIT(反推法)	元	
+ebitda_inverse	float	EBITDA(反推法)	元	
+nr_prof_loss	float	非经常性损益	元	
+net_prof_cut	float	扣除非经常性损益后的净利润	元	
+gross_prof	float	毛利润	元	
+oper_net_inc	float	经营活动净收益	元	
+val_chg_net_inc	float	价值变动净收益	元	
+exp_rd	float	研发费用	元	
+ttl_inv_cptl	float	全部投入资本	元	
+work_cptl	float	营运资本	元	
+net_work_cptl	float	净营运资本	元	
+tg_asset	float	有形资产	元	
+retain_inc	float	留存收益	元	
+int_debt	float	带息债务	元	
+net_debt	float	净债务	元	
+curr_liab_non_int	float	无息流动负债	元	
+ncur_liab_non_int	float	无息非流动负债	元	
+fcff	float	企业自由现金流量FCFF	元	
+fcfe	float	股权自由现金流量FCFE	元	
+cur_depr_amort	float	当期计提折旧与摊销	元	
+eqy_mult_dupont	float	权益乘数(杜邦分析)		
+net_prof_pcom_np	float	归属母公司股东的净利润/净利润	%	
+net_prof_tp	float	净利润/利润总额	%	
+ttl_prof_ebit	float	利润总额/息税前利润	%	
+roe_cut_avg	float	净资产收益率ROE(扣除/平均)	%	
+roe_add	float	净资产收益率ROE(增发条件)	%	
+roe_ann	float	净资产收益率ROE(年化)	%	
+roa	float	总资产报酬率ROA	%	
+roa_ann	float	总资产报酬率ROA(年化)	%	
+jroa	float	总资产净利率	%	
+jroa_ann	float	总资产净利率(年化)	%	
+roic	float	投入资本回报率ROIC	%	
+sale_npm	float	销售净利率	%	
+sale_gpm	float	销售毛利率	%	
+sale_cost_rate	float	销售成本率	%	
+sale_exp_rate	float	销售期间费用率	%	
+net_prof_toi	float	净利润/营业总收入	%	
+oper_prof_toi	float	营业利润/营业总收入	%	
+ebit_toi	float	息税前利润/营业总收入	%	
+ttl_cost_oper_toi	float	营业总成本/营业总收入	%	
+exp_oper_toi	float	营业费用/营业总收入	%	
+exp_admin_toi	float	管理费用/营业总收入	%	
+exp_fin_toi	float	财务费用/营业总收入	%	
+ast_impr_loss_toi	float	资产减值损失/营业总收入	%	
+ebitda_toi	float	EBITDA/营业总收入	%	
+oper_net_inc_tp	float	经营活动净收益/利润总额	%	
+val_chg_net_inc_tp	float	价值变动净收益/利润总额	%	
+net_exp_noper_tp	float	营业外支出净额/利润总额		
+inc_tax_tp	float	所得税/利润总额	%	
+net_prof_cut_np	float	扣除非经常性损益的净利润/净利润	%	
+eqy_mult	float	权益乘数		
+curr_ast_ta	float	流动资产/总资产	%	
+ncurr_ast_ta	float	非流动资产/总资产	%	
+tg_ast_ta	float	有形资产/总资产	%	
+ttl_eqy_pcom_tic	float	归属母公司股东的权益/全部投入资本	%	
+int_debt_tic	float	带息负债/全部投入资本	%	
+curr_liab_tl	float	流动负债/负债合计	%	
+ncurr_liab_tl	float	非流动负债/负债合计	%	
+ast_liab_rate	float	资产负债率	%	
+quick_rate	float	速动比率		
+curr_rate	float	流动比率		
+cons_quick_rate	float	保守速动比率		
+liab_eqy_rate	float	产权比率		
+ttl_eqy_pcom_tl	float	归属母公司股东的权益/负债合计		
+ttl_eqy_pcom_debt	float	归属母公司股东的权益/带息债务		
+tg_ast_tl	float	有形资产/负债合计		
+tg_ast_int_debt	float	有形资产/带息债务		
+tg_ast_net_debt	float	有形资产/净债务		
+ebitda_tl	float	息税折旧摊销前利润/负债合计		
+net_cf_oper_tl	float	经营活动产生的现金流量净额/负债合计		
+net_cf_oper_int_debt	float	经营活动产生的现金流量净额/带息债务		
+net_cf_oper_curr_liab	float	经营活动产生的现金流量净额/流动负债		
+net_cf_oper_net_liab	float	经营活动产生的现金流量净额/净债务		
+ebit_int_cover	float	已获利息倍数		
+long_liab_work_cptl	float	长期债务与营运资金比率		
+ebitda_int_debt	float	EBITDA/带息债务	%	
+oper_cycle	float	营业周期	天	
+inv_turnover_days	float	存货周转天数	天	
+acct_rcv_turnover_days	float	应收账款周转天数(含应收票据)	天	
+inv_turnover_rate	float	存货周转率	次	
+acct_rcv_turnover_rate	float	应收账款周转率(含应收票据)	次	
+curr_ast_turnover_rate	float	流动资产周转率	次	
+fix_ast_turnover_rate	float	固定资产周转率	次	
+ttl_ast_turnover_rate	float	总资产周转率	次	
+cash_rcv_sale_oi	float	销售商品提供劳务收到的现金/营业收入	%	
+net_cf_oper_oi	float	经营活动产生的现金流量净额/营业收入	%	
+net_cf_oper_oni	float	经营活动产生的现金流量净额/经营活动净收益		
+cptl_exp_da	float	资本支出/折旧摊销	%	
+cash_rate	float	现金比率		
+acct_pay_turnover_days	float	应付账款周转天数(含应付票据)	天	
+acct_pay_turnover_rate	float	应付账款周转率(含应付票据)	次	
+net_oper_cycle	float	净营业周期	天	
+ttl_cost_oper_yoy	float	营业总成本同比增长率	%	
+net_prof_yoy	float	净利润同比增长率	%	
+net_cf_oper_np	float	经营活动产生的现金流量净额/净利润	%	
+#stk_get_daily_valuation - 查询估值指标每日数据
+查询指定时间段股票的每日估值指标
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准
+函数原型：
+stk_get_daily_valuation(symbol, fields, start_date=None, end_date=None, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+symbol	str	股票代码	Y	无	必填，只能填一个股票标的，使用时参考symbol
+
+fields	str	返回字段	Y	无	指定需要返回的财务字段， 如有多个字段，中间用英文逗号分隔
+start_date	str	开始时间	N	None	开始时间，时间类型为交易日期，%Y-%m-%d 格式， 默认None表示最新时间
+end_date	str	结束时间	N	None	结束时间，时间类型为交易日期，%Y-%m-%d 格式， 默认None表示最新时间
+df	bool	返回格式	N	False	是否返回 dataframe 格式 ， 默认False返回 list[dict]
+返回值：
+字段名	类型	中文名称	说明
+symbol	str	股票代码	
+trade_date	str	交易日期	
+fields	list[float]	指标字段数据	指定返回 fields字段的数值. 支持的字段名请参考 估值指标
+
+示例：
+stk_get_daily_valuation(symbol='SHSE.600000', fields='pe_ttm,pe_lyr,pe_mrq', start_date=None, end_date=None, df=True)
+ 
+        复制成功
+    
+输出：
+        symbol  trade_date  pe_ttm  pe_lyr  pe_mrq
+0  SHSE.600000  2023-06-26  4.4139   4.107  3.3188
+ 
+        复制成功
+    
+注意：
+1. 当start_date == end_date时，取离 end_date 最近交易日期的一条数据，
+当start_dat< end_date时，取指定时间段的数据，
+当 start_date > end_date时，返回报错。
+2. 如果fields参数的指标字段填写不正确，或填写空字段，会报错提示“填写的 fields 不正确”。fields不能超过20个字段
+估值指标
+字段名	类型	中文名称	量纲	说明
+pe_ttm	float	市盈率(TTM)	倍	
+pe_lyr	float	市盈率(最新年报LYR)	倍	
+pe_mrq	float	市盈率(最新报告期MRQ)	倍	
+pe_1q	float	市盈率(当年一季×4)	倍	
+pe_2q	float	市盈率(当年中报×2)	倍	
+pe_3q	float	市盈率(当年三季×4/3)	倍	
+pe_ttm_cut	float	市盈率(TTM) 扣除非经常性损益	倍	
+pe_lyr_cut	float	市盈率(最新年报LYR) 扣除非经常性损益	倍	
+pe_mrq_cut	float	市盈率(最新报告期MRQ) 扣除非经常性损益	倍	
+pe_1q_cut	float	市盈率(当年一季×4) 扣除非经常性损益	倍	
+pe_2q_cut	float	市盈率(当年中报×2) 扣除非经常性损益	倍	
+pe_3q_cut	float	市盈率(当年三季×4/3) 扣除非经常性损益	倍	
+pb_lyr	float	市净率(最新年报LYR)	倍	
+pb_mrq	float	市净率(最新报告期MRQ)	倍	
+pb_lyr_1	float	市净率(剔除其他权益工具，最新年报LYR)	倍	
+pb_mrq_1	float	市净率(剔除其他权益工具，最新报告期MRQ)	倍	
+pcf_ttm_oper	float	市现率(经营现金流,TTM)	倍	
+pcf_ttm_ncf	float	市现率(现金净流量,TTM)	倍	
+pcf_lyr_oper	float	市现率(经营现金流,最新年报LYR)	倍	
+pcf_lyr_ncf	float	市现率(现金净流量,最新年报LYR)	倍	
+ps_ttm	float	市销率(TTM)	倍	
+ps_lyr	float	市销率(最新年报LYR)	倍	
+ps_mrq	float	市销率(最新报告期MRQ)	倍	
+ps_1q	float	市销率(当年一季×4)	倍	
+ps_2q	float	市销率(当年中报×2)	倍	
+ps_3q	float	市销率(当年三季×4/3)	倍	
+peg_lyr	float	历史PEG值(当年年报增长率)		
+peg_mrq	float	历史PEG值(最新报告期增长率)		
+peg_1q	float	历史PEG值(当年1季*4较上年年报增长率)		
+peg_2q	float	历史PEG值(当年中报*2较上年年报增长率)		
+peg_3q	float	历史PEG值(当年3季*4/3较上年年报增长率)		
+peg_np_cgr	float	历史PEG值(PE_TTM较净利润3年复合增长率)		
+peg_npp_cgr	float	历史PEG值(PE_TTM较净利润3年复合增长率)		
+dy_ttm	float	股息率(滚动 12 月TTM)	%	
+dy_lfy	float	股息率(上一财年LFY)	%	
+#stk_get_daily_mktvalue - 查询市值指标每日数据
+查询指定时间段股票的每日市值指标
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准
+函数原型：
+stk_get_daily_mktvalue(symbol, fields, start_date=None, end_date=None, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+symbol	str	股票代码	Y	无	必填，只能填一个股票标的，使用时参考symbol
+
+fields	str	返回字段	Y	无	指定需要返回的财务字段， 如有多个字段，中间用英文逗号分隔
+start_date	str	开始时间	N	None	开始时间，时间类型为交易日期，%Y-%m-%d 格式， 默认None表示最新时间
+end_date	str	结束时间	N	None	结束时间，时间类型为交易日期，%Y-%m-%d 格式， 默认None表示最新时间
+df	bool	返回格式	N	False	是否返回 dataframe 格式 ， 默认False返回 list[dict]
+返回值：
+字段名	类型	中文名称	说明
+symbol	str	股票代码	
+trade_date	str	交易日期	
+fields	list[float]	指标字段数据	指定返回 fields字段的数值. 支持的字段名请参考 市值指标
+
+示例：
+stk_get_daily_mktvalue(symbol='SHSE.600000', fields='tot_mv,tot_mv_csrc,a_mv',
+                                  start_date=None, end_date=None, df=True)
+ 
+        复制成功
+    
+输出：
+        symbol  trade_date      tot_mv  tot_mv_csrc        a_mv
+0  SHSE.600000  2023-06-26  2.1016e+11   2.1016e+11  2.1016e+11
+ 
+        复制成功
+    
+注意：
+1. 当start_date == end_date时，取离 end_date 最近交易日期的一条数据，
+当start_dat< end_date时，取指定时间段的数据，
+当 start_date > end_date时，返回报错。
+2. 如果fields参数的指标字段填写不正确，或填写空字段，会报错提示“填写的 fields 不正确”。fields不能超过20个字段
+市值指标
+字段名	类型	中文名称	量纲	说明
+tot_mv	float	总市值	元	
+tot_mv_csrc	float	总市值(证监会算法)	元	
+a_mv	float	A股流通市值(含限售股)	元	
+a_mv_ex_ltd	float	A股流通市值(不含限售股)	元	
+b_mv	float	B股流通市值(含限售股，折人民币)	元	
+b_mv_ex_ltd	float	B股流通市值(不含限售股，折人民币)	元	
+ev	float	企业价值(含货币资金)(EV1)	元	
+ev_ex_curr	float	企业价值(剔除货币资金)(EV2)	元	
+ev_ebitda	float	企业倍数	倍	
+equity_value	float	股权价值	元	
+#stk_get_daily_basic - 查询股本等基础指标每日数据
+查询指定时间段股票的每日基础指标
+此函数为掘金公版(体验版/专业版/机构版)函数，券商版以升级提示为准
+函数原型：
+stk_get_daily_basic(symbol, fields, start_date=None, end_date=None, df=False)
+ 
+        复制成功
+    
+参数：
+参数名	类型	中文名称	必填	默认值	参数用法说明
+symbol	str	股票代码	Y	无	必填，只能填一个股票标的，使用时参考symbol
+
+fields	str	返回字段	Y	无	指定需要返回的财务字段， 如有多个字段，中间用英文逗号分隔
+start_date	str	开始时间	N	None	开始时间，时间类型为交易日期，%Y-%m-%d 格式， 默认None表示最新时间
+end_date	str	结束时间	N	None	结束时间，时间类型为交易日期，%Y-%m-%d 格式， 默认None表示最新时间
+df	bool	返回格式	N	False	是否返回 dataframe 格式 ， 默认False返回 list[dict]
+返回值：
+字段名	类型	中文名称	说明
+symbol	str	股票代码	
+trade_date	str	交易日期	
+fields	list[float]	指标字段数据	指定返回 fields字段的数值. 支持的字段名请参考 基础指标
+
+示例：
+stk_get_daily_basic(symbol='SHSE.600000', fields='tclose,turnrate,ttl_shr,circ_shr',
+                                  start_date=None, end_date=None, df=True)
+ 
+        复制成功
+    
+输出：
+        symbol  trade_date  turnrate    circ_shr     ttl_shr  tclose
+0  SHSE.600000  2023-06-26    0.1159  2.9352e+10  2.9352e+10    7.16
+ 
+        复制成功
+    
+注意：
+1. 当start_date == end_date时，取离 end_date 最近交易日期的一条数据，
+当start_dat< end_date时，取指定时间段的数据，
+当 start_date > end_date时，返回报错。
+2. 如果fields参数的财务字段填写不正确，或填写空字段，会报错提示“填写的 fields 不正确”。fields不能超过20个字段
+基础指标
+字段名	类型	中文名称	量纲	说明
+tclose	float	收盘价	元	
+turnrate	float	当日换手率	%	
+ttl_shr	float	总股本	股	
+circ_shr	float	流通股本（流通股本=无限售条件流通股本+有限售条件流通股本）	股	
+ttl_shr_unl	float	无限售条件流通股本(A股+H股)	股	
+ttl_shr_ltd	float	有限售条件股本	股	
+a_shr_unl	float	无限售条件流通A股股本(行情软件定义的流通股)	股	
+h_shr_unl	float	无限售条件流通H股股本	股	
+order_volume - 按指定量委托
+函数原型：
+order_volume(symbol, volume, side, order_type,position_effect, price=0, trigger_type=0, stop_price=0, order_duration=OrderDuration_Unknown, order_qualifier=OrderQualifier_Unknown,account='')
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+symbol	str	标的代码
+volume	int	数量(指股数)
+side	int	参见订单委托方向
+
+order_type	int	参见订单委托类型
+
+position_effect	int	参见开平仓类型
+
+price	float	价格（限价委托的委托价格；市价委托的保护价，沪市实盘市价单必填字段，股票需要保留两位小数，回测仿真可不填写，参考下文注意点6。）
+trigger_type	int	参见期货条件单触发方式，非条件单为0
+
+stop_price	float	期货条件单触发价格，非条件单为0，对已有持仓进行止盈，触发价格为止盈价。对已有持仓进行止损，触发价格为止损价。开仓时，触发价格为开仓触发价。
+account	account id or account name or None	帐户
+返回值：
+类型	说明
+list[order]	委托对象列表，参见order 对象
+
+示例：
+order_volume(symbol='SHSE.600000', volume=10000, side=OrderSide_Buy, order_type=OrderType_Limit, position_effect=PositionEffect_Open, price=11)
+ 
+        复制成功
+    
+返回：
+[{'strategy_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'account_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'cl_ord_id': '000000000', 'symbol': 'SHSE.600000', 'side': 1, 'position_effect': 1, 'position_side': 1, 'order_type': 1, 'status': 3, 'price': 11.0, 'order_style': 1, 'volume': 10000, 'value': 110000.0, 'percent': 5.5e-05, 'target_volume': 10000, 'target_value': 110000.0, 'target_percent': 5.5e-05, 'filled_volume': 10000, 'filled_vwap': 11.0011, 'filled_amount': 110010.99999999999, 'created_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'filled_commission': 11.0011, 'account_name': '', 'order_id': '', 'ex_ord_id': '', 'algo_order_id': '', 'order_business': 0, 'order_duration': 0, 'order_qualifier': 0, 'order_src': 0, 'position_src': 0, 'ord_rej_reason': 0, 'ord_rej_reason_detail': '', 'stop_price': 0.0}]
+ 
+        复制成功
+    
+注意：
+1. 仅支持一个标的代码，若交易代码输入有误，终端会拒绝此单，并显示委托代码不正确。
+2. 若下单数量输入有误，终端会拒绝此单，并显示委托量不正确。股票买入最小单位为100，卖出最小单位为1,如存在不足 100 股的持仓一次性卖出;期货买卖最小单位为1，向下取整。
+3. 若仓位不足，终端会拒绝此单，显示仓位不足。平仓时股票默认平昨仓，期货默认平今仓。应研究需要，股票也支持卖空操作。
+4. 输入无效参数报NameError错误，缺少参数报TypeError错误。
+5. 关于side与position_effect字段的使用说明，（股票，基金和可转债只能做多，买入（填买开），卖出（填卖平））
+做多（买开）：side=OrderSide_Buy ，position_effect=PositionEffect_Open 平仓（卖平）：side=OrderSide_Sell ，position_effect=PositionEffect_Close
+做空（卖开）：side=OrderSide_Sell ，position_effect=PositionEffect_Open 平仓（买平）：side= OrderSide_Buy ，position_effect=PositionEffect_Close
+6. 按交易所规定，沪市市价单，必须填写保护限价。（买入设置保护限价price 的有效范围为当前价~涨停价， 卖出设置保护限价price的有效范围为跌停价~当前价。），终端版本号大于3.21.0.0的，会默认买入填写涨停价，卖出填写跌停价。
+7. 边界处理规则
+8. 期货实盘条件单参数组合示例
+9. 期货条件单注意事项：
+- 预埋条件单可对已有持仓进行止盈和止损，也可以达到触发价格开仓。
+
+- 预埋条件单状态OrderStatus：待触发、已触发。已触发的条件单不会再继续监控。条件单触发后，触发的普通委托如被CTP拒绝（资金不足、仓位不足等），且交易账户未登出，可通过on_order_status接收推送的普通委托拒绝状态。
+
+- 预埋条件单仅限当日有效，截至收盘仍未触发的条件单在当日收盘后会自动清除。
+
+- 预埋条件单参数trigger_type和stop_price仅支持期货实盘账户可用，account指定仿真账户时填写trigger_type和stop_price无效，视为普通单。
+ 
+        复制成功
+    
+#order_value - 按指定价值委托
+函数原型：
+order_value(symbol, value, side,order_type, position_effect, price=0, order_duration=OrderDuration_Unknown, order_qualifier=OrderQualifier_Unknown,account='')
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+symbol	str	标的代码
+value	int	股票价值
+side	int	参见订单委托方向
+
+order_type	int	参见订单委托类型
+
+position_effect	int	参见开平仓类型
+
+price	float	价格（限价委托的委托价格；市价委托的保护价，沪市实盘市价单必填字段，股票需要保留两位小数，回测仿真可不填写，参考下文注意点5。）
+account	account id or account name or None	帐户
+返回值：
+类型	说明
+list[order]	委托对象列表，参见order 对象
+
+示例：
+下限价单，以 11 元每股的价格买入价值为 100000 的 SHSE.600000,根据 volume = value / price,计算并取整得到 volume = 9000
+order_value(symbol='SHSE.600000', value=100000, price=11, side=OrderSide_Buy, order_type=OrderType_Limit, position_effect=PositionEffect_Open)
+ 
+        复制成功
+    
+返回：
+[{'strategy_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'account_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'cl_ord_id': '000000000', 'symbol': 'SHSE.600000', 'side': 1, 'position_effect': 1, 'position_side': 1, 'order_type': 1, 'status': 3, 'price': 11.0, 'order_style': 1, 'volume': 9000, 'value': 100000.0, 'percent': 5e-05, 'target_volume': 9000, 'target_value': 99000.0, 'target_percent': 4.95e-05, 'filled_volume': 9000, 'filled_vwap': 11.0011, 'filled_amount': 99009.9, 'created_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'filled_commission': 9.90099, 'account_name': '', 'order_id': '', 'ex_ord_id': '', 'algo_order_id': '', 'order_business': 0, 'order_duration': 0, 'order_qualifier': 0, 'order_src': 0, 'position_src': 0, 'ord_rej_reason': 0, 'ord_rej_reason_detail': '', 'stop_price': 0.0}]
+ 
+        复制成功
+    
+注意：
+1. 仅支持一个标的代码，若交易代码输入有误，终端会拒绝此单，并显示委托代码不正确。
+2. 根据指定价值计算购买标的数量，即value/price。股票买卖最小单位为100，不足 100 部分向下取整，如存在不足 100 的持仓一次性卖出;期货买卖最小单位为1，向下取整。
+3. 若仓位不足，终端会拒绝此单，显示仓位不足。平仓时股票默认平昨仓，期货默认平今仓。应研究需要，股票也支持卖空操作。
+4. 输入无效参数报 NameError 错误，缺少参数报 TypeError 错误。
+5. 按交易所规定，沪市市价单，必须填写保护限价。（买入设置保护限价price 的有效范围为当前价~涨停价， 卖出设置保护限价price的有效范围为跌停价~当前价。），终端版本号大于3.21.0.0的，会默认买入填写涨停价，卖出填写跌停价。
+6. 边界处理规则
+#order_percent - 按总资产指定比例委托
+函数原型：
+order_percent(symbol, percent, side,order_type, position_effect, price=0, order_duration=OrderDuration_Unknown, order_qualifier=OrderQualifier_Unknown, account='')
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+symbol	str	标的代码
+percent	double	委托占总资产比例
+side	int	参见订单委托方向
+
+order_type	int	参见订单委托类型
+
+position_effect	int	参见开平仓类型
+
+price	float	价格（限价委托的委托价格；市价委托的保护价，沪市实盘市价单必填字段，股票需要保留两位小数，回测仿真可不填写，参考下文注意点6。）
+account	account id or account name or None	帐户
+返回值：
+类型	说明
+list[order]	委托对象列表，参见order 对象
+
+示例：
+当前总资产为 1000000。下限价单，以 11 元每股的价格买入 SHSE.600000,期望买入比例占总资产的 10%，根据 volume = nav * precent / price 计算取整得出 volume = 9000
+order_percent(symbol='SHSE.600000', percent=0.1, side=OrderSide_Buy, order_type=OrderType_Limit, position_effect=PositionEffect_Open, price=11)
+ 
+        复制成功
+    
+返回：
+[{'strategy_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'account_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'cl_ord_id': '000000000', 'symbol': 'SHSE.600000', 'side': 1, 'position_effect': 1, 'position_side': 1, 'order_type': 1, 'status': 3, 'price': 11.0, 'order_style': 1, 'volume': 18181800, 'value': 200000000.0, 'percent': 0.1, 'target_volume': 18181800, 'target_value': 199999800.0, 'target_percent': 0.0999999, 'filled_volume': 18181800, 'filled_vwap': 11.0011, 'filled_amount': 200019799.98, 'created_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'filled_commission': 20001.979998, 'account_name': '', 'order_id': '', 'ex_ord_id': '', 'algo_order_id': '', 'order_business': 0, 'order_duration': 0, 'order_qualifier': 0, 'order_src': 0, 'position_src': 0, 'ord_rej_reason': 0, 'ord_rej_reason_detail': '', 'stop_price': 0.0}]
+ 
+        复制成功
+    
+注意：
+1. 仅支持一个标的代码，若交易代码输入有误，终端会拒绝此单，并显示委托代码不正确。
+2. 根据指定比例计算购买标的数量,即(nav*precent)/price,股票买卖最小单位为100，不足 100 部分向下取整，如存在不足 100 的持仓一次性卖出;期货买卖最小单位为1，向下取整。
+3. 若仓位不足，终端会拒绝此单，显示仓位不足。平仓时股票默认平昨仓，期货默认平今仓。应研究需要，股票也支持卖空操作。
+4. 输入无效参数报 NameError 错误，缺少参数报 TypeError 错误。
+5. 期货实盘时，percent 是以合约上市的初始保证金比例计算得到的，并非实时保证金比例。
+6. 按交易所规定，沪市市价单，必须填写保护限价。（买入设置保护限价price 的有效范围为当前价~涨停价， 卖出设置保护限价price的有效范围为跌停价~当前价。），终端版本号大于3.21.0.0的，会默认买入填写涨停价，卖出填写跌停价。
+7. 边界处理规则
+#order_target_volume - 调仓到目标持仓量
+函数原型：
+order_target_volume(symbol, volume, position_side, order_type, price=0, order_duration=OrderDuration_Unknown, order_qualifier=OrderQualifier_Unknown, account='')
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+symbol	str	标的代码
+volume	int	期望的最终数量
+position_side	int	表示将多仓还是空仓调到目标持仓量，参见 持仓方向
+
+order_type	int	参见订单委托类型
+
+price	float	价格（限价委托的委托价格；市价委托的保护价，沪市实盘市价单必填字段，股票需要保留两位小数，回测仿真可不填写，参考下文注意点5。）
+account	account id or account name or None	帐户
+返回值：
+类型	说明
+list[order]	委托对象列表，参见order 对象
+
+示例：
+当前 SHSE.600000 多方向持仓量为 0，期望持仓量为 10000，下单量为期望持仓量 - 当前持仓量 = 10000
+order_target_volume(symbol='SHSE.600000', volume=10000, position_side=PositionSide_Long, order_type=OrderType_Limit, price=13)
+ 
+        复制成功
+    
+返回：
+[{'strategy_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'account_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'cl_ord_id': '000000000', 'symbol': 'SHSE.600000', 'side': 1, 'position_effect': 1, 'position_side': 1, 'order_type': 1, 'status': 3, 'price': 13.0, 'order_style': 1, 'volume': 10000, 'value': 130000.0, 'percent': 6.5e-05, 'target_volume': 10000, 'target_value': 130000.0, 'target_percent': 6.5e-05, 'filled_volume': 10000, 'filled_vwap': 13.0013, 'filled_amount': 130013.0, 'created_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'filled_commission': 13.0013, 'account_name': '', 'order_id': '', 'ex_ord_id': '', 'algo_order_id': '', 'order_business': 0, 'order_duration': 0, 'order_qualifier': 0, 'order_src': 0, 'position_src': 0, 'ord_rej_reason': 0, 'ord_rej_reason_detail': '', 'stop_price': 0.0}]
+ 
+        复制成功
+    
+注意：
+1. 仅支持一个标的代码，若交易代码输入有误，订单会被拒绝，终端无显示，无回报。回测模式可参看 order_reject_reason。
+2. 根据目标数量计算下单数量，系统判断开平仓类型。若下单数量有误，终端拒绝此单，并显示委托量不正确。若实际需要买入数量为 0，则订单会被拒绝，终端无显示，无回报。股票买卖最小单位为100，不足 100 部分向下取整，如存在不足 100 的持仓一次性卖出;期货买卖最小单位为1，向下取整。
+3. 若仓位不足，终端拒绝此单，显示仓位不足。平仓时股票默认平昨仓，期货默认平今仓,上期所昨仓不能平掉。应研究需要，股票也支持卖空操作。
+4. 输入无效参数报 NameError 错误，缺少参数报 Typeerror 错误。
+5. 按交易所规定，沪市市价单，必须填写保护限价。（买入设置保护限价price 的有效范围为当前价~涨停价， 卖出设置保护限价price的有效范围为跌停价~当前价。），终端版本号大于3.21.0.0的，会默认买入填写涨停价，卖出填写跌停价。
+6. 边界处理规则
+#order_target_value - 调仓到目标持仓额
+函数原型：
+order_target_value(symbol, value, position_side, order_type, price=0, order_duration=OrderDuration_Unknown, order_qualifier=OrderQualifier_Unknown, account='')
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+symbol	str	标的代码
+value	int	期望的股票最终价值
+position_side	int	表示将多仓还是空仓调到目标持仓量，参见 持仓方向
+
+order_type	int	参见订单委托类型
+
+price	float	价格（限价委托的委托价格；市价委托的保护价，沪市实盘市价单必填字段，股票需要保留两位小数，回测仿真可不填写，参考下文注意点5。）
+account	account id or account name or None	帐户
+返回值：
+类型	说明
+list[order]	委托对象列表，参见order 对象
+
+示例：
+当前 SHSE.600000 多方向当前持仓量为 0，目标持有价值为 100000 的该股票，根据 value / price 计算取整得出目标持仓量 volume 为 9000，目标持仓量 - 当前持仓量 = 下单量为 9000
+order_target_value(symbol='SHSE.600000', value=100000, position_side=PositionSide_Long, order_type=OrderType_Limit, price=11)
+ 
+        复制成功
+    
+返回：
+[{'strategy_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'account_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'cl_ord_id': '000000000', 'symbol': 'SHSE.600000', 'side': 1, 'position_effect': 1, 'position_side': 1, 'order_type': 1, 'status': 3, 'price': 11.0, 'order_style': 1, 'volume': 9000, 'value': 100000.0, 'percent': 5e-05, 'target_volume': 9000, 'target_value': 100000.0, 'target_percent': 5e-05, 'filled_volume': 9000, 'filled_vwap': 11.0011, 'filled_amount': 99009.9, 'created_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'filled_commission': 9.90099, 'account_name': '', 'order_id': '', 'ex_ord_id': '', 'algo_order_id': '', 'order_business': 0, 'order_duration': 0, 'order_qualifier': 0, 'order_src': 0, 'position_src': 0, 'ord_rej_reason': 0, 'ord_rej_reason_detail': '', 'stop_price': 0.0}]
+ 
+        复制成功
+    
+注意：
+1. 仅支持一个标的代码，若交易代码输入有误，订单会被拒绝，终端无显示，无回报。回测模式可参看 order_reject_reason。
+2. 根据目标价值计算下单数量，系统判断开平仓类型。若下单数量有误，终端拒绝此单，并显示委托量不正确。若实际需要买入数量为 0，则本地拒绝此单，终端无显示，无回报。股票买卖最小单位为100，不足 100 部分向下取整，如存在不足 100 的持仓一次性卖出;期货买卖最小单位为1，向下取整。
+3. 若仓位不足，终端拒绝此单，显示仓位不足。平仓时股票默认平昨仓，期货默认平今仓，目前不可修改。应研究需要，股票也支持卖空操作。
+4. 输入无效参数报 NameError 错误，缺少参数报 Typeerror 错误。
+5. 按交易所规定，沪市市价单，必须填写保护限价。（买入设置保护限价price 的有效范围为当前价~涨停价， 卖出设置保护限价price的有效范围为跌停价~当前价。），终端版本号大于3.21.0.0的，会默认买入填写涨停价，卖出填写跌停价。
+6. 边界处理规则
+#order_target_percent - 调仓到目标持仓比例（总资产的比例）
+函数原型：
+order_target_percent(symbol, percent, position_side, order_type, price=0, order_duration=OrderDuration_Unknown, order_qualifier=OrderQualifier_Unknown, account='')
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+symbol	str	标的代码
+percent	double	期望的最终占总资产比例
+position_side	int	表示将多仓还是空仓调到目标持仓量，参见 持仓方向
+
+order_type	int	参见订单委托类型
+
+price	float	价格（限价委托的委托价格；市价委托的保护价，沪市实盘市价单必填字段，股票需要保留两位小数，回测仿真可不填写，参考下文注意点6。）
+account	account id or account name or None	帐户
+返回值：
+类型	说明
+list[order]	委托对象列表，参见order 对象
+
+示例：
+当前总资产价值为 1000000，目标为以 11 元每股的价格买入 SHSE.600000 的价值占总资产的 10%，根据 volume = nav * percent / price 计算取整得出应持有 9000 股。当前该股持仓量为零，因此买入量为 9000
+order_target_percent(symbol='SHSE.600000', percent=0.1, position_side=PositionSide_Long, order_type=OrderType_Limit, price=11)
+ 
+        复制成功
+    
+返回：
+[{'strategy_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'account_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'cl_ord_id': '000000000', 'symbol': 'SHSE.600000', 'side': 1, 'position_effect': 1, 'position_side': 1, 'order_type': 1, 'status': 3, 'price': 11.0, 'order_style': 1, 'volume': 18181800, 'value': 200000000.0, 'percent': 0.1, 'target_volume': 18181800, 'target_value': 199999800.0, 'target_percent': 0.1, 'filled_volume': 18181800, 'filled_vwap': 11.0011, 'filled_amount': 200019799.98, 'created_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'filled_commission': 20001.979998, 'account_name': '', 'order_id': '', 'ex_ord_id': '', 'algo_order_id': '', 'order_business': 0, 'order_duration': 0, 'order_qualifier': 0, 'order_src': 0, 'position_src': 0, 'ord_rej_reason': 0, 'ord_rej_reason_detail': '', 'stop_price': 0.0}]
+ 
+        复制成功
+    
+注意：
+1. 仅支持一个标的代码，若交易代码输入有误，订单会被拒绝，终端无显示，无回报。回测模式可参看 order_reject_reason。
+2. 根据目标比例计算下单数量，为占总资产(nav）比例，系统判断开平仓类型。若下单数量有误，终端拒绝此单，并显示委托量不正确。若实际需要买入数量为 0，则本地拒绝此单，终端无显示，无回报。股票买卖最小单位为100，不足 100 部分向下取整，如存在不足 100 的持仓一次性卖出;期货买卖最小单位为1，向下取整。
+3. 若仓位不足，终端拒绝此单，显示仓位不足。平仓时股票默认平昨仓，期货默认平今仓，目前不可修改。应研究需要，股票也支持卖空操作。
+4. 输入无效参数报 NameError 错误，缺少参数报 Typeerror 错误。
+5. 期货实盘时，percent 是以合约上市的初始保证金比例计算得到的，并非实时保证金比例。
+6. 按交易所规定，沪市市价单，必须填写保护限价。（买入设置保护限价price 的有效范围为当前价~涨停价， 卖出设置保护限价price的有效范围为跌停价~当前价。），终端版本号大于3.21.0.0的，会默认买入填写涨停价，卖出填写跌停价。
+7. 边界处理规则
+#order_batch - 批量委托接口
+函数原型：
+order_batch(orders, combine=False, account='')
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+orders	list[order]	委托对象列表，其中委托至少包含交易接口的必选参数，参见order 对象
+
+combine	bool	是否是组合单, 默认不是（预留字段，目前无效）
+account	account id or account name or None	帐户
+返回值：
+类型	说明
+list[order]	委托对象列表，参见order 对象
+
+示例：
+    order_1 = {'symbol': 'SHSE.600000', 'volume': 100, 'price': 11, 'side': 1,
+               'order_type': 2, 'position_effect':1}
+    order_2 = {'symbol': 'SHSE.600004', 'volume': 100, 'price': 11, 'side': 1,
+               'order_type': 2, 'position_effect':1}
+    orders = [order_1, order_2]
+    batch_orders = order_batch(orders, combine=True)
+    for order in batch_orders:
+        print(order)
+ 
+        复制成功
+    
+返回：
+{'strategy_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'account_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'cl_ord_id': '000000000', 'symbol': 'SHSE.600000', 'side': 1, 'position_effect': 1, 'order_type': 2, 'status': 3, 'price': 10.280000686645508, 'order_style': 1, 'volume': 100, 'filled_volume': 100, 'filled_vwap': 10.281028686714173, 'filled_amount': 1028.1028686714174, 'created_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'filled_commission': 0.10281028686714173, 'account_name': '', 'order_id': '', 'ex_ord_id': '', 'algo_order_id': '', 'position_side': 0, 'order_business': 0, 'order_duration': 0, 'order_qualifier': 0, 'order_src': 0, 'position_src': 0, 'ord_rej_reason': 0, 'ord_rej_reason_detail': '', 'stop_price': 0.0, 'value': 0.0, 'percent': 0.0, 'target_volume': 0, 'target_value': 0.0, 'target_percent': 0.0}
+{'strategy_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'account_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'cl_ord_id': '000000001', 'symbol': 'SHSE.600004', 'side': 1, 'position_effect': 1, 'order_type': 2, 'status': 3, 'price': 15.050000190734863, 'order_style': 1, 'volume': 100, 'filled_volume': 100, 'filled_vwap': 15.051505190753936, 'filled_amount': 1505.1505190753935, 'created_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'filled_commission': 0.15051505190753936, 'account_name': '', 'order_id': '', 'ex_ord_id': '', 'algo_order_id': '', 'position_side': 0, 'order_business': 0, 'order_duration': 0, 'order_qualifier': 0, 'order_src': 0, 'position_src': 0, 'ord_rej_reason': 0, 'ord_rej_reason_detail': '', 'stop_price': 0.0, 'value': 0.0, 'percent': 0.0, 'target_volume': 0, 'target_value': 0.0, 'target_percent': 0.0}
+{'strategy_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'account_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'cl_ord_id': '000000002', 'symbol': 'SHSE.600000', 'side': 1, 'position_effect': 1, 'order_type': 2, 'status': 3, 'price': 10.180000305175781, 'order_style': 1, 'volume': 100, 'filled_volume': 100, 'filled_vwap': 10.1810183052063, 'filled_amount': 1018.10183052063, 'created_at': datetime.datetime(2020, 9, 2, 9, 40, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2020, 9, 2, 9, 40, tzinfo=tzfile('PRC')), 'filled_commission': 0.101810183052063, 'account_name': '', 'order_id': '', 'ex_ord_id': '', 'algo_order_id': '', 'position_side': 0, 'order_business': 0, 'order_duration': 0, 'order_qualifier': 0, 'order_src': 0, 'position_src': 0, 'ord_rej_reason': 0, 'ord_rej_reason_detail': '', 'stop_price': 0.0, 'value': 0.0, 'percent': 0.0, 'target_volume': 0, 'target_value': 0.0, 'target_percent': 0.0}
+{'strategy_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'account_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'cl_ord_id': '000000003', 'symbol': 'SHSE.600004', 'side': 1, 'position_effect': 1, 'order_type': 2, 'status': 3, 'price': 14.819999694824219, 'order_style': 1, 'volume': 100, 'filled_volume': 100, 'filled_vwap': 14.8214816947937, 'filled_amount': 1482.14816947937, 'created_at': datetime.datetime(2020, 9, 2, 9, 40, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2020, 9, 2, 9, 40, tzinfo=tzfile('PRC')), 'filled_commission': 0.148214816947937, 'account_name': '', 'order_id': '', 'ex_ord_id': '', 'algo_order_id': '', 'position_side': 0, 'order_business': 0, 'order_duration': 0, 'order_qualifier': 0, 'order_src': 0, 'position_src': 0, 'ord_rej_reason': 0, 'ord_rej_reason_detail': '', 'stop_price': 0.0, 'value': 0.0, 'percent': 0.0, 'target_volume': 0, 'target_value': 0.0, 'target_percent': 0.0}
+ 
+        复制成功
+    
+注意：
+1. 每个 order 的 symbol 仅支持一个标的代码，若交易代码输入有误，终端会拒绝此单，并显示委托代码不正确。
+2. 若下单数量输入有误，终端会拒绝此单，并显示委托量不正确。下单数量严格按照指定数量下单，需注意股票买入最小单位为 100。
+3. 若仓位不足，终端会拒绝此单，显示仓位不足。应研究需要，股票也支持卖空操作。
+4. 输入无效参数报 NameError 错误，缺少参数不报错，可能会出现下单被拒。
+#order_cancel - 撤销委托
+函数原型：
+order_cancel(wait_cancel_orders)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+wait_cancel_orders	list[dict]	传入单个字典. 或者 list 字典. 每个字典包含 key: cl_ord_id, account_id， 参见order 对象
+
+示例：
+# 先查未结委托，再把未结委托全部撤单，
+unfin_order = get_unfinished_orders()
+if unfin_order:
+    order_cancel(wait_cancel_orders=unfin_order)
+
+# 也可循环未结委托，根据下单时间撤单
+unfin_order = get_unfinished_orders()
+for order in unfin_order:
+    # 下单超过30秒，没有全部成交撤单
+    if (abs(context.now - order['created_at'])).seconds > 30:
+        # 撤单
+        order_cancel(wait_cancel_orders=[{'cl_ord_id': order['cl_ord_id'], 'account_id': order['account_id']}])
+
+ 
+        复制成功
+    
+#order_cancel_all - 撤销所有委托
+函数原型：
+order_cancel_all()
+ 
+        复制成功
+    
+示例：
+order_cancel_all()
+ 
+        复制成功
+    
+#order_close_all - 平当前所有可平持仓
+注意： 不支持市价委托类型的委托，会被柜台拒绝
+函数原型：
+order_close_all()
+ 
+        复制成功
+    
+示例：
+order_close_all()
+ 
+        复制成功
+    
+#get_unfinished_orders - 查询日内全部未结委托
+函数原型：
+get_unfinished_orders()
+ 
+        复制成功
+    
+返回值：
+类型	说明
+list[order]	委托对象列表，参见order 对象
+
+示例：
+get_unfinished_orders()
+ 
+        复制成功
+    
+返回：
+[{'strategy_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'account_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'cl_ord_id': '000000000', 'symbol': 'SHSE.600519', 'side': 1, 'position_effect': 1, 'position_side': 1, 'order_type': 2, 'status': 3, 'price': 1792.0, 'order_style': 1, 'volume': 100, 'value': 179200.0, 'percent': 8.96e-05, 'target_volume': 100, 'target_value': 179200.0, 'target_percent': 8.96e-05, 'filled_volume': 100, 'filled_vwap': 1792.1792, 'filled_amount': 179217.92, 'created_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'filled_commission': 17.921792000000003, 'account_name': '', 'order_id': '', 'ex_ord_id': '', 'algo_order_id': '', 'order_business': 0, 'order_duration': 0, 'order_qualifier': 0, 'order_src': 0, 'position_src': 0, 'ord_rej_reason': 0, 'ord_rej_reason_detail': '', 'stop_price': 0.0}]
+ 
+        复制成功
+    
+#get_orders - 查询日内全部委托
+函数原型：
+get_orders()
+ 
+        复制成功
+    
+返回值：
+类型	说明
+list[order]	委托对象列表，参见order 对象
+
+示例：
+get_orders()
+ 
+        复制成功
+    
+返回：
+[{'strategy_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'account_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'cl_ord_id': '000000000', 'symbol': 'SHSE.600519', 'side': 1, 'position_effect': 1, 'position_side': 1, 'order_type': 2, 'status': 3, 'price': 1792.0, 'order_style': 1, 'volume': 100, 'value': 179200.0, 'percent': 8.96e-05, 'target_volume': 100, 'target_value': 179200.0, 'target_percent': 8.96e-05, 'filled_volume': 100, 'filled_vwap': 1792.1792, 'filled_amount': 179217.92, 'created_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'filled_commission': 17.921792000000003, 'account_name': '', 'order_id': '', 'ex_ord_id': '', 'algo_order_id': '', 'order_business': 0, 'order_duration': 0, 'order_qualifier': 0, 'order_src': 0, 'position_src': 0, 'ord_rej_reason': 0, 'ord_rej_reason_detail': '', 'stop_price': 0.0}]
+ 
+        复制成功
+    
+#get_execution_reports - 查询日内全部执行回报
+函数原型：
+get_execution_reports()
+ 
+        复制成功
+    
+返回值：
+类型	说明
+list[execrpt]	回报对象列表， 参见ExecRpt 回报对象
+
+示例：
+get_execution_reports()
+ 
+        复制成功
+    
+返回：
+[{'strategy_id': '004beb61-1282-11eb-9313-00ff5a669ee2', 'account_id': '3acc8b6e-af54-11e9-b2de-00163e0a4100', 'account_name': '3acc8b6e-af54-11e9-b2de-00163e0a4100', 'cl_ord_id': '49764a82-14fb-11eb-89df-00ff5a669ee2', 'order_id': '4a06f925-14fb-11eb-9e8a-00163e0a4100', 'exec_id': '573b108b-14fb-11eb-9e8a-00163e0a4100', 'symbol': 'SHSE.600714', 'position_effect': 1, 'side': 1, 'exec_type': 15, 'price': 5.579999923706055, 'volume': 900, 'amount': 5021.999931335449, 'created_at': datetime.datetime(2020, 10, 23, 14, 45, 29, 776756, tzinfo=tzfile('PRC')), 'commission': 5.0, 'cost': 5021.999931335449, 'ord_rej_reason': 0, 'ord_rej_reason_detail': ''}]
+
+ 
+        复制成功
+    
+交易查询函数
+#get_cash - 查询指定交易账户的资金信息
+查询指定交易账户的资金信息, gm SDK 3.0.163 版本新增
+原型：
+get_cash(account_id=None)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+account_id	str	账户信息，默认返回默认账户, 如多个账户需指定 account_id
+返回值：
+类型	说明
+dict	Cash 资金对象
+
+示例：
+cash = get_cash()
+print(cash)
+ 
+        复制成功
+    
+输出：
+{'account_id': '8bf2b0cb-9f0d-11ee-bd0b-00163e163353', 'account_name': '8bf2b0cb-9f0d-11ee-bd0b-00163e163353', 'nav': 100049705.54665434, 'pnl': 49705.546654343605, 'fpnl': 5296.038990020825, 'frozen': 138363.60003433225, 'available': 99911315.9466925, 'cum_inout': 100000000.0, 'cum_trade': 6749993.987827301, 'cum_pnl': 44620.012207031454, 'cum_commission': 210.5045427023142, 'last_trade': 30450.0, 'last_commission': 1.5, 'last_inout': 100000000.0, 'created_at': datetime.datetime(2023, 12, 20, 15, 58, 22, 641250, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2024, 1, 23, 14, 53, 16, 670507, tzinfo=tzfile('PRC')), 'balance': 100048365.54669249, 'market_value': 1164370.039024353, 'enable_bail': 99911315.9466925, 'fpnl_diluted': 5296.038990020825, 'channel_id': '', 'currency': 0, 'order_frozen': 0.0, 'last_pnl': 0.0, 'change_reason': 0, 'change_event_id': '', 'market_value_long': 0.0, 'market_value_short': 0.0, 'used_bail': 0.0}
+ 
+        复制成功
+    
+注意：
+1. account_id不存在时，返回空字典。
+2. 当策略关联一个交易账户时，account_id可不用填，当策略关联多个交易账户时，必须指定account_id，否则会报错。
+3. get_cash和context.account().cash的区别，get_cash直接查询终端的最新数据，不需要像context.account().cash通过context对象更新。
+#get_position - 查询指定交易账户的全部持仓信息
+查询指定交易账户的全部持仓信息, gm SDK 3.0.163 版本新增
+原型：
+get_position(account_id=None)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+account_id	str	账户信息，默认返回默认账户, 如多个账户需指定 account_id
+返回值：
+类型	说明
+list[position]	Position 持仓对象列表
+示例：
+position = get_position()
+print(position)
+ 
+        复制成功
+    
+输出：
+[{'account_id': '8bf2b0cb-9f0d-11ee-bd0b-00163e163353', 'symbol': 'DCE.m2405', 'side': 1, 'volume': 2, 'vwap': 3200.5, 'amount': 64010.0, 'price': 3072.0, 'fpnl': -2570.0, 'cost': 4480.700000000001, 'available': 2, 'last_price': 3045.0, 'last_volume': 1, 'created_at': datetime.datetime(2023, 12, 27, 10, 37, 54, 801075, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2024, 1, 23, 20, 0, 9, 133899, tzinfo=tzfile('PRC')), 'vwap_diluted': 3200.5, 'market_value': 61440.0, 'available_now': 2, 'vwap_open': 3200.5, 'fpnl_open': -2570.0, 'fpnl_diluted': -2570.0, 'account_name': '', 'channel_id': '', 'volume_today': 0, 'order_frozen': 0, 'order_frozen_today': 0, 'available_today': 0, 'last_inout': 0, 'change_reason': 0, 'change_event_id': '', 'has_dividend': 0, 'covered_flag': 0, 'properties': {}, 'credit_position_sellable_volume': 0}, {'account_id': '8bf2b0cb-9f0d-11ee-bd0b-00163e163353', 'symbol': 'SHSE.600000', 'side': 1, 'volume': 200, 'vwap': 6.57, 'amount': 1314.0000343322754, 'price': 6.71, 'fpnl': 27.99997329711914, 'cost': 1314.0000343322754, 'available': 200, 'last_price': 6.570000171661377, 'last_volume': 200, 'created_at': datetime.datetime(2023, 12, 27, 13, 38, 30, 195484, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2023, 12, 28, 8, 30, 0, 678, tzinfo=tzfile('PRC')), 'vwap_diluted': 6.57, 'market_value': 1342.0000076293945, 'available_now': 200, 'vwap_open': 6.57, 'fpnl_open': 27.99997329711914, 'fpnl_diluted': 27.99997329711914, 'account_name': '', 'channel_id': '', 'volume_today': 0, 'order_frozen': 0, 'order_frozen_today': 0, 'available_today': 0, 'last_inout': 0, 'change_reason': 0, 'change_event_id': '', 'has_dividend': 0, 'covered_flag': 0, 'properties': {}, 'credit_position_sellable_volume': 0}, {'account_id': '8bf2b0cb-9f0d-11ee-bd0b-00163e163353', 'symbol': 'CZCE.RM405', 'side': 1, 'volume': 1, 'vwap': 2717.0, 'amount': 27170.0, 'price': 2555.0, 'fpnl': -1620.0, 'cost': 2445.2999999999997, 'available': 1, 'last_price': 2717.0, 'last_volume': 1, 'created_at': datetime.datetime(2024, 1, 2, 14, 43, 56, 787534, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2024, 1, 2, 20, 0, 7, 245847, tzinfo=tzfile('PRC')), 'vwap_diluted': 2717.0, 'market_value': 25550.0, 'available_now': 1, 'vwap_open': 2717.0, 'fpnl_open': -1620.0, 'fpnl_diluted': -1620.0, 'account_name': '', 'channel_id': '', 'volume_today': 0, 'order_frozen': 0, 'order_frozen_today': 0, 'available_today': 0, 'last_inout': 0, 'change_reason': 0, 'change_event_id': '', 'has_dividend': 0, 'covered_flag': 0, 'properties': {}, 'credit_position_sellable_volume': 0}, {'account_id': '8bf2b0cb-9f0d-11ee-bd0b-00163e163353', 'symbol': 'GFEX.lc2405', 'side': 1, 'volume': 1, 'vwap': 106700.0, 'amount': 106700.0, 'price': 101600.0, 'fpnl': -5100.0, 'cost': 14938.000000000002, 'available': 1, 'last_price': 106700.0, 'last_volume': 1, 'created_at': datetime.datetime(2024, 1, 3, 9, 26, 18, 868588, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2024, 1, 4, 8, 30, 0, 1110, tzinfo=tzfile('PRC')), 'vwap_diluted': 106700.0, 'market_value': 101600.0, 'available_now': 1, 'vwap_open': 106700.0, 'fpnl_open': -5100.0, 'fpnl_diluted': -5100.0, 'account_name': '', 'channel_id': '', 'volume_today': 0, 'order_frozen': 0, 'order_frozen_today': 0, 'available_today': 0, 'last_inout': 0, 'change_reason': 0, 'change_event_id': '', 'has_dividend': 0, 'covered_flag': 0, 'properties': {}, 'credit_position_sellable_volume': 0}, {'account_id': '8bf2b0cb-9f0d-11ee-bd0b-00163e163353', 'symbol': 'CFFEX.IC2402', 'side': 1, 'volume': 1, 'vwap': 4799.4, 'amount': 959879.9999999999, 'price': 4890.2002, 'fpnl': 18160.039062500073, 'cost': 115185.59999999998, 'available': 1, 'last_price': 4799.4, 'last_volume': 1, 'created_at': datetime.datetime(2024, 1, 23, 14, 52, 55, 800533, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2024, 1, 24, 8, 30, 0, 1825, tzinfo=tzfile('PRC')), 'vwap_diluted': 4799.4, 'market_value': 978040.0390625, 'available_now': 1, 'vwap_open': 4799.4, 'fpnl_open': 18160.039062500073, 'fpnl_diluted': 18160.039062500073, 'account_name': '', 'channel_id': '', 'volume_today': 0, 'order_frozen': 0, 'order_frozen_today': 0, 'available_today': 0, 'last_inout': 0, 'change_reason': 0, 'change_event_id': '', 'has_dividend': 0, 'covered_flag': 0, 'properties': {}, 'credit_position_sellable_volume': 0}]
+ 
+        复制成功
+    
+注意：
+1. account_id不存在时，返回空列表。
+2. 当策略关联一个交易账户时，account_id可不用填，当策略关联多个交易账户时，必须指定account_id，否则会报错。
+3. get_position和context.account().positions()的区别，get_position直接查询终端的最新数据，不需要像context.account().positions()通过context对象更新。
+#context.account().cash - 查询当前账户资金
+原型：
+context.account(account_id=None).cash
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+account_id	str	账户信息，默认返回默认账户, 如多个账户需指定 account_id
+返回值：
+类型	说明
+dict[cash]	Cash 资金对象列表
+示例-获取当前账户资金：
+context.account().cash
+ 
+        复制成功
+    
+输出：
+{'account_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'nav': 1905248.2789094353, 'pnl': -94751.72109056474, 'fpnl': -94555.35135529494, 'frozen': 1963697.3526980684, 'available': 36106.277566661825, 'cum_inout': 2000000.0, 'cum_trade': 1963697.3526980684, 'cum_commission': 196.3697352698069, 'last_trade': 1536.1536610412597, 'last_commission': 0.153615366104126, 'created_at': datetime.datetime(2020, 9, 1, 8, 0, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2020, 9, 30, 9, 40, tzinfo=tzfile('PRC')), 'account_name': '', 'currency': 0, 'order_frozen': 0.0, 'balance': 0.0, 'market_value': 0.0, 'cum_pnl': 0.0, 'last_pnl': 0.0, 'last_inout': 0.0, 'change_reason': 0, 'change_event_id': ''}
+ 
+        复制成功
+    
+#context.account().positions() - 查询当前账户全部持仓
+原型：
+context.account(account_id=None).positions()
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+account_id	str	账户信息，默认返回默认账户, 如多个账户需指定 account_id
+返回值：
+类型	说明
+list[position]	Position 持仓对象列表
+注意： 没有持仓时，返回空列表
+示例-获取当前持仓：
+# 所有持仓
+Account_positions = context.account().positions()
+
+ 
+        复制成功
+    
+输出：
+# 所有持仓输出
+[{'account_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'symbol': 'SHSE.600419', 'side': 1, 'volume': 2200, 'volume_today': 100, 'vwap': 16.43391600830338, 'amount': 36154.61521826744, 'fpnl': -2362.6138754940007, 'cost': 36154.61521826744, 'available': 2200, 'available_today': 100, 'created_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2020, 9, 30, 9, 40, tzinfo=tzfile('PRC')), 'account_name': '', 'vwap_diluted': 0.0, 'price': 0.0, 'order_frozen': 0, 'order_frozen_today': 0, 'available_now': 0, 'market_value': 0.0, 'last_price': 0.0, 'last_volume': 0, 'last_inout': 0, 'change_reason': 0, 'change_event_id': '', 'has_dividend': 0}, {'account_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'symbol': 'SHSE.600519', 'side': 1, 'volume': 1100, 'vwap': 1752.575242219682, 'amount': 1927832.7664416502, 'fpnl': -110302.84700805641, 'cost': 1927832.7664416502, 'available': 1100, 'created_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2020, 9, 15, 9, 40, tzinfo=tzfile('PRC')), 'account_name': '', 'volume_today': 0, 'vwap_diluted': 0.0, 'price': 0.0, 'order_frozen': 0, 'order_frozen_today': 0, 'available_today': 0, 'available_now': 0, 'market_value': 0.0, 'last_price': 0.0, 'last_volume': 0, 'last_inout': 0, 'change_reason': 0, 'change_event_id': '', 'has_dividend': 0}]
+ 
+        复制成功
+    
+#context.account().position(symbol, side) - 查询当前账户指定持仓
+参数：
+参数名	类型	说明
+symbol	str	标的代码
+side	int	持仓方向，取值参考PositionSide 持仓方向
+
+返回值：
+类型	说明
+dict[position]	Position 持仓对象列表
+注意： 当指定标的没有持仓时，返回 None 示例-获取当前持仓：
+# 指定持仓
+Account_position = context.account().position(symbol='SHSE.600519',side = PositionSide_Long)
+ 
+        复制成功
+    
+输出：
+# 指定持仓输出
+{'account_id': 'd7443a53-f65b-11ea-bb9d-484d7eaefe55', 'symbol': 'SHSE.600519', 'side': 1, 'volume': 1100, 'vwap': 1752.575242219682, 'amount': 1927832.7664416502, 'fpnl': -110302.84700805641, 'cost': 1927832.7664416502, 'available': 1100, 'created_at': datetime.datetime(2020, 9, 1, 9, 40, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2020, 9, 15, 9, 40, tzinfo=tzfile('PRC')), 'account_name': '', 'volume_today': 0, 'vwap_diluted': 0.0, 'price': 0.0, 'order_frozen': 0, 'order_frozen_today': 0, 'available_today': 0, 'available_now': 0, 'market_value': 0.0, 'last_price': 0.0, 'last_volume': 0, 'last_inout': 0, 'change_reason': 0, 'change_event_id': '', 'has_dividend': 0}
+ 
+算法交易函数
+python 算法 SDK 包含在 gm3.0.126 版本及以上版本，不需要引入新库 仅支持实时模式，部分券商版本可用
+#algo_order 算法交易委托
+委托算法母单
+函数原型：
+algo_order(symbol, volume, side, order_type,position_effect, price, algo_name, algo_param)
+ 
+        复制成功
+    
+参数：
+参数	类型	说明
+symbol	str	标的代码
+volume	int	数量
+side	int	OrderSide_Buy = 1 买入 OrderSide_Sell = 2 卖出
+order_type	int	OrderType_Limit = 1 限价委托，OrderType_Market = 2 市价委托
+position_effect	int	PositionEffect_Open = 1 开仓 PositionEffect_Close = 2 平仓,
+price	int	基准价格（ATS-SMART 算法不生效）
+algo_name	str	算法名称，ATS-SMART、ZC-POV
+algo_param	dict	算法参数
+返回值：
+类型	说明
+list[algoOrder]	算法母单委托对象列表，参见algoOrder 对象
+
+当 algo_name = 'ATS-SMART'时 algo_param 的参数为
+参数	类型	说明
+start_time	str	开始时间
+end_time_referred	str	结束参考时间(不能超过 14:55:00)
+end_time	str	结束时间(不能超过 14:55:00)
+end_time_valid	int	结束时间是否有效,如设为无效，则以收盘时间为结束时间, 1 为有效， 0 为无效
+stop_sell_when_dl	int	涨停时是否停止卖出， 1 为是，0 为否
+cancel_when_pl	int	跌停时是否撤单, 1 为是， 0 为否
+min_trade_amount	int	最小交易金额
+示例：
+# 下算法母单，设定母单的执行参数
+algo_param = {'start_time': '09:00:00', 'end_time_referred':'14:55:00', 'end_time': '14:55:00', 'end_time_valid': 1, 'stop_sell_when_dl': 1,
+              'cancel_when_pl': 0, 'min_trade_amount': 100000}
+aorders = algo_order(symbol='SHSE.600000', volume=20000, side=OrderSide_Buy, order_type=OrderType_Limit,
+                   position_effect=PositionEffect_Open, price=5, algo_name='ATS-SMART', algo_param=algo_param)
+print(aorders)
+ 
+        复制成功
+    
+输出：
+[{'strategy_id': '6f534238-2883-11eb-a8fe-fa163ef85f63', 'account_id': '927f9095-27e5-11eb-bb81-fa163ef85f63', 'account_name': '1001000002', 'cl_ord_id': '03f13690-2d64-11eb-9e36-fa163ef85f63', 'symbol': 'SHSE.600000', 'side': 1, 'position_effect': 1, 'order_type': 1, 'status': 10, 'price': 5.0, 'order_style': 1, 'volume': 20000, 'created_at': datetime.datetime(2020, 11, 23, 16, 15, 15, 105141, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2020, 11, 23, 16, 15, 15, 105141,tzinfo=tzfile('PRC')), 'algo_name': 'ATS-SMART', 'algo_param': 'start_time&&1606093200||end_time_referred&&1606114500||end_time&&1606114500||end_time_valid&&1||stop_sell_when_dl&&1||cancel_when_pl&&0||min_trade_amount&&100000', 'order_id': '', 'ex_ord_id': '', 'position_side': 0, 'order_business': 0, 'order_duration': 0, 'order_qualifier': 0, 'order_src': 0, 'position_src': 0, 'ord_rej_reason': 0, 'ord_rej_reason_detail': '', 'stop_price': 0.0, 'value': 0.0, 'percent': 0.0, 'target_volume': 0, 'target_value': 0.0, 'target_percent': 0.0, 'filled_volume': 0, 'filled_vwap': 0.0, 'filled_amount': 0.0, 'filled_commission': 0.0, 'algo_status': 0, 'algo_comment': ''}]
+ 
+        复制成功
+    
+当 algo_name = 'ZC-POV'时 algo_param 的参数为
+参数	类型	说明
+part_rate	float	市场参与率（0~45），单位%，默认 30，即 30%
+price	float	基准价格
+示例：
+# 下算法母单，设定母单的执行参数
+algo_param = {"participation_rate" : 15, "price" : 15.47}
+aorder = algo_order(symbol=symbol, volume=1000, side=OrderSide_Buy, order_type=OrderSide_Buy,
+               position_effect=PositionEffect_Open, price=price, algo_name=algo_name, algo_param=algo_param)
+print(aorder)
+ 
+        复制成功
+    
+输出：
+[{'strategy_id': '6f534238-2883-11eb-a8fe-fa163ef85f63', 'account_id': '15b7afb1-e91d-11eb-953b-025041000001', 'account_name': 'b6b2819b-e864-11eb-b146-00163e0a4100', 'cl_ord_id': 'e0f4ca3f-f97a-11eb-acee-165afc004509', 'symbol': 'SHSE.600007', 'side': 1, 'position_effect': 1, 'order_type': 1, 'status': 10, 'price': 15.470000267028809, 'order_style': 1, 'volume': 1000, 'created_at': datetime.datetime(2021, 8, 10, 9, 32, 52, 39737, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2021, 8, 10, 9, 32, 52, 42738, tzinfo=tzfile('PRC')), 'algo_name': 'ZC-POV', 'algo_param': 'TimeStart&&1628559000||TimeEnd&&1628578800||PartRate&&0.150000||MinAmount&&1000', 'order_id': '', 'ex_ord_id': '', 'position_side': 0, 'order_business': 0, 'order_duration': 0, 'order_qualifier': 0, 'order_src': 0, 'position_src': 0, 'ord_rej_reason': 0, 'ord_rej_reason_detail': '', 'stop_price': 0.0, 'value': 0.0, 'percent': 0.0, 'target_volume': 0, 'target_value': 0.0, 'target_percent': 0.0, 'filled_volume': 0, 'filled_vwap': 0.0, 'filled_amount': 0.0, 'filled_commission': 0.0, 'algo_status': 0, 'algo_comment': '', 'properties': {}]
+ 
+        复制成功
+    
+注意： 回测模式不支持算法单
+#algo_order_cancel 撤销算法委托
+撤销母单委托
+函数原型：
+algo_order_cancel(wait_cancel_orders)
+ 
+        复制成功
+    
+参数：
+参数	类型	说明
+wait_cancel_orders	str	撤单算法委托. 传入单个字典. 或者 list 字典. 每个字典包含 key:cl_ord_id key:account_id
+cl_ord_id 为委托 id， account_id 为账户 id
+返回值：
+类型	说明
+list[algoOrder]	算法母单委托对象列表，参见algoOrder 对象
+
+示例：
+aorders = get_algo_orders(account='')
+wait_cancel_orders = [{'cl_ord_id': aorders[0]['cl_ord_id'], 'account_id': aorders[0]['account_id']}]
+algo_order_cancel(wait_cancel_orders)
+ 
+        复制成功
+    
+#get_algo_orders 查询算法委托
+查询母单委托
+函数原型：
+algo_order_cancel(account)
+ 
+        复制成功
+    
+参数：
+参数	类型	说明
+account	str	account_id 默认帐号时为 ''
+返回值：
+类型	说明
+list[algoOrder]	算法母单委托对象列表，参见algoOrder 对象
+
+示例：
+get_algo_orders(account='')
+ 
+        复制成功
+    
+输出：
+[{'strategy_id': '6f534238-2883-11eb-a8fe-fa163ef85f63', 'account_id': '927f9095-27e5-11eb-bb81-fa163ef85f63', 'account_name': '1001000002', 'cl_ord_id': 'fe0ec2d3-2d50-11eb-9e36-fa163ef85f63', 'symbol': 'SHSE.510300', 'side': 1, 'position_effect': 1, 'order_type': 1, 'status': 10, 'price': 5.0, 'order_style': 1, 'volume': 20000, 'created_at': datetime.datetime(2020, 11, 23, 13, 59, 4,794594, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2020, 11, 23, 13, 59, 4, 795571, tzinfo=tzfile('PRC')), 'algo_name': 'ATS-SMART', 'algo_param': 'start_time&&1606093200||end_time_referred&&1606114500||end_time&&1606114500||end_time_valid&&1||stop_sell_when_dl&&1||cancel_when_pl&&0||min_trade_amount&&100000', 'order_id': '', 'ex_ord_id': '', 'position_side': 0, 'order_business': 0, 'order_duration': 0, 'order_qualifier': 0, 'order_src': 0, 'position_src': 0, 'ord_rej_reason': 0, 'ord_rej_reason_detail': '', 'stop_price': 0.0, 'value': 0.0, 'percent': 0.0, 'target_volume': 0, 'target_value': 0.0, 'target_percent': 0.0, 'filled_volume': 0, 'filled_vwap': 0.0, 'filled_amount': 0.0, 'filled_commission': 0.0, 'algo_status': 0, 'algo_comment': ''}]
+ 
+        复制成功
+    
+#algo_order_pause 暂停或重启或者撤销算法委托
+函数原型：
+algo_order_pause(alorders)
+ 
+        复制成功
+    
+参数：
+参数	类型	说明
+alorders	str	传入单个字典. 或者 list 字典. 每个字典包含 key:cl_ord_id, key:account_id key:algo_status
+cl_ord_id 为委托 id， account_id 为账户 id，algo_status 为算法单状态（1 - 重启 2 - 暂停 3 -暂停并撤子单）
+返回值：
+类型	说明
+list[algoOrder]	算法母单委托对象列表，参见algoOrder 对象
+
+aorders = get_algo_orders(account='')
+# 暂停订单，修改订单结构的母单状态字段
+alorders01 = [{'cl_ord_id': aorders[0]['cl_ord_id'], 'account_id': aorders[0]['account_id'], 'algo_status': 3}]
+algo_order_pause(alorders01)
+ 
+        复制成功
+    
+注意： ATS-SMART 和 ZC-POV 算法暂不支持此接口
+#get_algo_child_orders 查询算法委托的所有子单
+函数原型：
+get_algo_child_orders(cl_ord_id, account='')
+ 
+        复制成功
+    
+参数：
+参数	类型	说明
+cl_ord_id	str	传入单个字典. 或者 list 字典. 每个字典包含 key:cl_ord_id
+account	str	account_id 默认帐号时为 ''
+返回值：
+类型	说明
+list[order]	委托对象列表，参见order 对象
+
+示例：
+aorders = get_algo_orders(account='')
+child_order= get_algo_child_orders(aorders[0]['cl_ord_id'], account='')
+print(child_order[0])
+ 
+        复制成功
+    
+输出：
+[{'account_id': '17ceec74-2efb-11eb-b437-00ff5a669ee2', 'account_name': '0000001', 'cl_ord_id': '1606294231_9', 'order_id': '1606294231_9', 'symbol': 'SZSE.000001', 'side': 1, 'position_effect': 1, 'order_type': 1, 'status': 3, 'price': 19.06, 'volume': 100, 'filled_volume': 100, 'filled_vwap': 19.06, 'filled_amount': 1905.9999999999998, 'algo_order_id': '453b3064-2efb-11eb-b437-00ff5a669ee2', 'strategy_id': '', 'ex_ord_id': '', 'position_side': 0, 'order_business': 0, 'order_duration': 0, 'order_qualifier': 0, 'order_src': 0, 'ord_rej_reason': 0, 'ord_rej_reason_detail': '', 'stop_price': 0.0, 'order_style': 0, 'value': 0.0, 'percent': 0.0, 'target_volume': 0, 'target_value': 0.0, 'target_percent': 0.0, 'filled_commission': 0.0, 'created_at': None, 'updated_at': None}]
+ 
+        复制成功
+    
+#on_algo_order_status 算法单状态事件
+响应算法单状态更新事情，下算法单后状态更新时被触发
+函数原型：
+on_algo_order_status(context, algo_order)
+ 
+        复制成功
+    
+参数：
+参数名	类型	说明
+context	context
+上下文
+algo_order	order 对象
+委托
+示例：
+def on_algo_order_status(context, algo_order):
+	print(algo_order)
+
+ 
+        复制成功
+    
+输出：
+{'strategy_id': '6f534238-2883-11eb-a8fe-fa163ef85f63', 'account_id': '927f9095-27e5-11eb-bb81-fa163ef85f63', 'account_name': '1001000002', 'cl_ord_id': '09baa735-2e01-11eb-ab6f-fa163ef85f63','symbol': 'SHSE.600000', 'side': 1, 'position_effect': 1,'order_type': 1, 'status':1, 'price': 5.0, 'order_style': 1, 'volume': 20000, 'created_at':datetime.datetime(2020,11, 24, 10, 59, 15, 800453, tzinfo=tzfile('PRC')), 'updated_at': datetime.datetime(2020, 11, 24, 10, 59, 17, 922523, tzinfo=tzfile('PRC')), 'algo_name': 'ATS-SMART', 'algo_param': 'start_time&&1606179600||end_time_referred&&1606200900||end_time&&1606200900||end_time_valid&&1|stop_sell_when_dl&&1||cancel_when_pl&&0||min_trade_amount&&100000', 'order_id': '', 'ex_ord_id':'', 'position_side': 0, 'order_business': 0, 'order_duration': 0, 'order_qualifier':0, 'order_src': 0, 'position_src': 0, 'ord_rej_reason': 0, 'ord_rej_reason_detail': '', 'stop_price': 0.0, 'value': 0.0, 'percent': 0.0, 'target_volume': 0, 'target_value': 0.0, 'target_percent': 0.0, 'filled_volume': 0, 'filled_vwap': 0.0, 'filled_amount': 0.0, 'filled_commission': 0.0, 'algo_status':0, 'algo_comment': ''}
+ 
+        复制成功
+    
+#algo_order_batch 批量算法交易委托
+批量委托算法母单（N个标的代码，一次性批量下同一算法的N个母单）
+函数原型：
+algo_order_batch(algo_orders, algo_name, algo_param, account='')
+ 
+        复制成功
+    
+参数：
+参数	类型	说明
+algo_orders	list[algoOrder]	算法委托对象列表，其中algoOrder为字典，字段参见algoOrder 对象
+
+algo_name	str	算法名称，批量算法交易接口仅支持'ATS-SMART'算法，'ZC-POV'算法
+algo_param	dict	算法参数
+account	account id or account name or None	帐户
+algoOrder字典
+参数	类型	说明
+symbol	str	标的代码
+volume	int	委托数量
+price	int	委托价格，ZC-POV算法的基准价格（ATS-SMART 算法不生效）
+side	int	参见订单委托方向，OrderSide_Buy = 1 买入OrderSide_Sell = 2 卖出
+order_type	int	参见订单委托类型，OrderType_Limit = 1 限价委托，OrderType_Market = 2 市价委托
+position_effect	int	参见开平仓类型，PositionEffect_Open = 1 开仓 PositionEffect_Close = 2 平仓
+返回值：
+类型	说明
+list[algoOrder]	算法母单委托对象列表，参见algoOrder 对象
+
+当 algo_name = 'ATS-SMART'时 algo_param 的参数为
+参数	类型	说明
+start_time	str	开始时间
+end_time_referred	str	结束参考时间(不能超过 14:55:00)
+end_time	str	结束时间(不能超过 14:55:00)
+end_time_valid	int	结束时间是否有效,如设为无效，则以收盘时间为结束时间, 1 为有效， 0 为无效
+stop_sell_when_dl	int	涨停时是否停止卖出， 1 为是，0 为否
+cancel_when_pl	int	跌停时是否撤单, 1 为是， 0 为否
+min_trade_amount	int	最小交易金额
+示例：
+order_1 = {'symbol': 'SHSE.600000', 'volume': 20000, 'price': 11, 'side': 1,'order_type': 2, 'position_effect':1}
+order_2 = {'symbol': 'SHSE.600004', 'volume': 20000, 'price': 11, 'side': 1,'order_type': 2, 'position_effect':1} 
+my_orders = [order_1, order_2]
+
+my_algo_param = {'start_time':'10:00:00', 'end_time':'14:55:00', 'end_time_referred':'14:55:00', 'end_time_valid': 1, 'stop_sell_when_dl':1, 'cancel_when_pl': 0, 'min_trade_amount': 100000}
+
+batch_algo_orders = algo_order_batch(algo_orders=my_orders, algo_name='ATS-SMART', algo_param=my_algo_param, account='64b20e68-45b2-11ec-b534-00163e0a4100')
+
+for algo_order in batch_algo_orders:
+    print(algo_order)
+ 
+        复制成功
+    
+输出：
+{'strategy_id': 'f467dbdd-c746-11ef-8b37-803f5d090d40', 'account_id': '64b20e68-45b2-11ec-b534-00163e0a4100', 'account_name': '64b20e68-45b2-11ec-b534-00163e0a4100', 'cl_ord_id': 'b2778a14-c8cf-11ef-b39e-803f5d090d40', 'symbol': 'SHSE.600000', 'side': 1, 'position_effect': 1, 'order_type': 2, 'status': 8, 'ord_rej_reason': 17, 'ord_rej_reason_detail': '[GMTERM] 账号无该算法权限', 'price': 11.0, 'order_style': 1, 'volume': 20000, 'created_at': datetime.datetime(2025, 1, 2, 14, 6, 24, 973877, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), 'updated_at': datetime.datetime(2025, 1, 2, 14, 6, 24, 973877, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), 'algo_name': 'ATS-SMART', 'properties': {'origin_product': 'ZILCHTECH'}, 'algo_provider': 'ZILCHTECH', 'algo_params': {'stop_sell_when_dl': '1', 'end_time_valid': '1', 'cancel_when_pl': '0', 'price': '11.000000', 'end_time_referred': '1735800900', 'end_time': '1735800900', 'min_trade_amount': '100000', 'start_time': '1735783200'}, 'channel_id': '', 'order_id': '', 'ex_ord_id': '', 'position_side': 0, 'order_business': 0, 'order_duration': 0, 'order_qualifier': 0, 'order_src': 0, 'position_src': 0, 'stop_price': 0.0, 'value': 0.0, 'percent': 0.0, 'target_volume': 0, 'target_value': 0.0, 'target_percent': 0.0, 'filled_volume': 0, 'filled_vwap': 0.0, 'filled_amount': 0.0, 'filled_commission': 0.0, 'algo_param': '', 'algo_status': 0, 'algo_comment': ''}
+{'strategy_id': 'f467dbdd-c746-11ef-8b37-803f5d090d40', 'account_id': '64b20e68-45b2-11ec-b534-00163e0a4100', 'account_name': '64b20e68-45b2-11ec-b534-00163e0a4100', 'cl_ord_id': 'b2778a14-c8cf-11ef-b39f-803f5d090d40', 'symbol': 'SHSE.600004', 'side': 1, 'position_effect': 1, 'order_type': 2, 'status': 8, 'ord_rej_reason': 17, 'ord_rej_reason_detail': '[GMTERM] 账号无该算法权限', 'price': 11.0, 'order_style': 1, 'volume': 20000, 'created_at': datetime.datetime(2025, 1, 2, 14, 6, 24, 973877, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), 'updated_at': datetime.datetime(2025, 1, 2, 14, 6, 24, 973877, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), 'algo_name': 'ATS-SMART', 'properties': {'origin_product': 'ZILCHTECH'}, 'algo_provider': 'ZILCHTECH', 'algo_params': {'stop_sell_when_dl': '1', 'end_time_valid': '1', 'cancel_when_pl': '0', 'end_time_referred': '1735800900', 'price': '11.000000', 'end_time': '1735800900', 'min_trade_amount': '100000', 'start_time': '1735783200'}, 'channel_id': '', 'order_id': '', 'ex_ord_id': '', 'position_side': 0, 'order_business': 0, 'order_duration': 0, 'order_qualifier': 0, 'order_src': 0, 'position_src': 0, 'stop_price': 0.0, 'value': 0.0, 'percent': 0.0, 'target_volume': 0, 'target_value': 0.0, 'target_percent': 0.0, 'filled_volume': 0, 'filled_vwap': 0.0, 'filled_amount': 0.0, 'filled_commission': 0.0, 'algo_param': '', 'algo_status': 0, 'algo_comment': ''}
+ 
+        复制成功
+    
+当 algo_name = 'ZC-POV'时 algo_param 的参数为
+参数	类型	说明
+part_rate	float	市场参与率（0~45），单位%，默认 30，即 30%
+示例：
+order_1 = {'symbol': 'SHSE.600000', 'volume': 20000, 'price': 11, 'side': 1,'order_type': 2, 'position_effect':1}
+order_2 = {'symbol': 'SHSE.600004', 'volume': 20000, 'price': 11, 'side': 1,'order_type': 2, 'position_effect':1} 
+my_orders = [order_1, order_2]
+
+my_algo_param = {'participation_rate':40}
+
+batch_algo_orders = algo_order_batch(algo_orders=my_orders, algo_name='ZC-POV', algo_param=my_algo_param, account='64b20e68-45b2-11ec-b534-00163e0a4100')
+
+for algo_order in batch_algo_orders:
+    print(algo_order)
+ 
+        复制成功
+    
+输出：
+{'strategy_id': 'f467dbdd-c746-11ef-8b37-803f5d090d40', 'account_id': '64b20e68-45b2-11ec-b534-00163e0a4100', 'account_name': '64b20e68-45b2-11ec-b534-00163e0a4100', 'cl_ord_id': '11a199f1-c8d2-11ef-b3a0-803f5d090d40', 'symbol': 'SHSE.600000', 'side': 1, 'position_effect': 1, 'order_type': 2, 'status': 8, 'ord_rej_reason': 17, 'ord_rej_reason_detail': '[GMTERM] 账号无该算法权限', 'price': 11.0, 'order_style': 1, 'volume': 20000, 'created_at': datetime.datetime(2025, 1, 2, 14, 23, 23, 626546, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), 'updated_at': datetime.datetime(2025, 1, 2, 14, 23, 23, 626546, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), 'algo_name': 'ZC-POV', 'properties': {'origin_product': 'ZILCHTECH'}, 'algo_provider': 'ZILCHTECH', 'algo_params': {'participation_rate': '40', 'price': '11.000000'}, 'channel_id': '', 'order_id': '', 'ex_ord_id': '', 'position_side': 0, 'order_business': 0, 'order_duration': 0, 'order_qualifier': 0, 'order_src': 0, 'position_src': 0, 'stop_price': 0.0, 'value': 0.0, 'percent': 0.0, 'target_volume': 0, 'target_value': 0.0, 'target_percent': 0.0, 'filled_volume': 0, 'filled_vwap': 0.0, 'filled_amount': 0.0, 'filled_commission': 0.0, 'algo_param': '', 'algo_status': 0, 'algo_comment': ''}
+{'strategy_id': 'f467dbdd-c746-11ef-8b37-803f5d090d40', 'account_id': '64b20e68-45b2-11ec-b534-00163e0a4100', 'account_name': '64b20e68-45b2-11ec-b534-00163e0a4100', 'cl_ord_id': '11a199f1-c8d2-11ef-b3a1-803f5d090d40', 'symbol': 'SHSE.600004', 'side': 1, 'position_effect': 1, 'order_type': 2, 'status': 8, 'ord_rej_reason': 17, 'ord_rej_reason_detail': '[GMTERM] 账号无该算法权限', 'price': 11.0, 'order_style': 1, 'volume': 20000, 'created_at': datetime.datetime(2025, 1, 2, 14, 23, 23, 626546, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), 'updated_at': datetime.datetime(2025, 1, 2, 14, 23, 23, 626546, tzinfo=datetime.timezone(datetime.timedelta(seconds=28800), 'Asia/Shanghai')), 'algo_name': 'ZC-POV', 'properties': {'origin_product': 'ZILCHTECH'}, 'algo_provider': 'ZILCHTECH', 'algo_params': {'participation_rate': '40', 'price': '11.000000'}, 'channel_id': '', 'order_id': '', 'ex_ord_id': '', 'position_side': 0, 'order_business': 0, 'order_duration': 0, 'order_qualifier': 0, 'order_src': 0, 'position_src': 0, 'stop_price': 0.0, 'value': 0.0, 'percent': 0.0, 'target_volume': 0, 'target_value': 0.0, 'target_percent': 0.0, 'filled_volume': 0, 'filled_vwap': 0.0, 'filled_amount': 0.0, 'filled_commission': 0.0, 'algo_param': '', 'algo_status': 0, 'algo_comment': ''}
+ 
+        复制成功
+    
+注意：
+1. 回测模式不支持批量算法单。
+2. 每个母单 algoOrder 的 symbol 仅支持一个标的代码，若交易代码输入有误，终端会拒绝此单，并显示委托代码不正确。
+3. 每个母单 algoOrder 的 symbol 不能重复，如果 list[algoOrder] 有重复标的代码symbol，批量委托会报错
+4. 算法参数 algo_param 对每个母单 algoOrder 均生效。
+5. ZC-POV算法支持的批量母单数量上限100，超出会被拒绝。
+
